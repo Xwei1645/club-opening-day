@@ -1,6 +1,6 @@
 import { defineEventHandler, createError } from "h3";
 import { prisma } from "../../utils/prisma";
-import { ensureDrawConfig } from "../../utils/draw";
+import { ensureDrawConfig, generateTicketCode } from "../../utils/draw";
 
 export default defineEventHandler(async () => {
   const cfg = await ensureDrawConfig();
@@ -33,7 +33,6 @@ export default defineEventHandler(async () => {
   const winners = shuffled.slice(0, winnerCount);
   const winnerIds = new Set(winners.map((item) => item.id));
 
-  const baseUrl = useRuntimeConfig().public.baseUrl;
   const now = new Date();
 
   await prisma.$transaction(async (tx) => {
@@ -44,12 +43,12 @@ export default defineEventHandler(async () => {
       });
 
       for (const winner of winners) {
-        const code = crypto.randomUUID().replace(/-/g, "");
+        const code = generateTicketCode();
         await tx.ticket.create({
           data: {
             participantId: winner.id,
             ticketCode: code,
-            qrPayload: `${baseUrl}/ticket?code=${code}`,
+            qrPayload: code,
             status: "VALID",
             issuedAt: now,
             expiresAt: cfg.ticketExpireAt,

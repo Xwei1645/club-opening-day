@@ -5,7 +5,7 @@ import { requestMeta } from "../../utils/request-meta";
 import { syncExpiredTickets } from "../../utils/draw";
 
 const schema = z.object({
-  ticketCode: z.string().trim().min(8),
+  ticketCode: z.string().trim().min(8).transform(v => v.replace(/\s/g, "")),
   operator: z.string().trim().max(80).optional(),
 });
 
@@ -14,7 +14,11 @@ export default defineEventHandler(async (event) => {
   const { ip, userAgent } = requestMeta(event);
   await syncExpiredTickets();
 
-  const ticket = await prisma.ticket.findUnique({ where: { ticketCode } });
+  const ticket = await prisma.ticket.findUnique({
+    where: { ticketCode },
+    include: { participant: true },
+  });
+
   if (!ticket) {
     await prisma.scanLog.create({
       data: {
@@ -28,6 +32,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: "Invalid ticket." });
   }
 
+  const participantInfo = {
+    name: ticket.participant.name,
+    school: ticket.participant.school,
+  };
+
   if (ticket.status === "USED") {
     await prisma.scanLog.create({
       data: {
@@ -38,7 +47,7 @@ export default defineEventHandler(async (event) => {
         userAgent,
       },
     });
-    return { ok: false, status: "used" };
+    return { ok: false, status: "used", participant: participantInfo };
   }
 
   if (ticket.status === "EXPIRED" || ticket.expiresAt < new Date()) {
@@ -55,7 +64,7 @@ export default defineEventHandler(async (event) => {
         userAgent,
       },
     });
-    return { ok: false, status: "expired" };
+    return { ok: false, status: "expired", participant: participantInfo };
   }
 
   const updated = await prisma.ticket.updateMany({
@@ -79,7 +88,7 @@ export default defineEventHandler(async (event) => {
         userAgent,
       },
     });
-    return { ok: false, status: "used" };
+    return { ok: false, status: "used", participant: participantInfo };
   }
 
   await prisma.scanLog.create({
@@ -92,5 +101,5 @@ export default defineEventHandler(async (event) => {
     },
   });
 
-  return { ok: true, status: "success" };
+  return { ok: true, status: "success", participant: participantInfo };
 });

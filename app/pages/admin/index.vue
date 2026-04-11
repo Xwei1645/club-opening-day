@@ -115,6 +115,11 @@ const formatDateTime = (dateStr: string) => {
   return d.toLocaleString("zh-CN");
 };
 
+const formatTicketCode = (code: string) => {
+  if (!code || code.length !== 8) return code;
+  return `${code.slice(0, 4)} ${code.slice(4)}`;
+};
+
 const handleLogin = () => {
   if (!password.value.trim()) {
     showToast("请输入密码");
@@ -636,7 +641,7 @@ onMounted(() => {
                 </div>
                 <div v-if="p.ticket" class="detail-row">
                   <span class="detail-label">门票码</span>
-                  <span class="detail-value">{{ p.ticket.ticketCode }}</span>
+                  <span class="detail-value">{{ formatTicketCode(p.ticket.ticketCode) }}</span>
                 </div>
                 <div v-if="p.ticket" class="detail-row">
                   <span class="detail-label">门票状态</span>
@@ -821,6 +826,7 @@ onMounted(() => {
     border-radius: 6px;
     font-size: 14px;
     outline: none;
+    box-sizing: border-box;
 
     &:focus {
       border-color: #1976d2;

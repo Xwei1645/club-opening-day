@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.17.1",
+    "jsqr": "^1.4.0",
     "nuxt": "^4.4.2",
     "qrcode": "^1.5.4",
     "sass": "^1.99.0",

@@ -1,68 +1,144 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import { showToast, showSuccessToast } from "vant";
+import jsQR from "jsqr";
+
+interface ScanResult {
+  ok: boolean;
+  status: string;
+  participant?: {
+    name: string;
+    school: string;
+  };
+}
+
+interface ScanRecord {
+  code: string;
+  status: string;
+  time: string;
+  name?: string;
+  school?: string;
+}
 
 const scanning = ref(false);
-const lastResult = ref<{
-  status: "success" | "used" | "expired" | "invalid";
-  ticketCode: string;
-  time: string;
-} | null>(null);
-
-const scanCount = ref(0);
 const successCount = ref(0);
+const showResult = ref(false);
+const resultStatus = ref<"success" | "used" | "expired" | "invalid">("invalid");
+const resultMessage = ref("");
+const resultParticipant = ref<{ name: string; school: string } | null>(null);
+const scanRecords = ref<ScanRecord[]>([]);
+const showRecords = ref(false);
 
 let videoElement: HTMLVideoElement | null = null;
+let canvasElement: HTMLCanvasElement | null = null;
+let canvasContext: CanvasRenderingContext2D | null = null;
 let stream: MediaStream | null = null;
+let animationId: number | null = null;
+let lastScannedCode = "";
+let lastScanTime = 0;
+let resultTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem("adminToken");
   if (!token) {
     navigateTo("/admin");
-    return {};
+    return { "x-admin-token": "" };
   }
   return { "x-admin-token": token };
 };
 
+const showResultPopup = (
+  status: "success" | "used" | "expired" | "invalid",
+  message: string,
+  participant?: { name: string; school: string }
+) => {
+  if (resultTimeout) {
+    clearTimeout(resultTimeout);
+  }
+
+  resultStatus.value = status;
+  resultMessage.value = message;
+  resultParticipant.value = participant || null;
+  showResult.value = true;
+
+  resultTimeout = setTimeout(() => {
+    showResult.value = false;
+  }, 2000);
+};
+
 const verifyTicket = async (code: string) => {
+  const now = Date.now();
+  if (code === lastScannedCode && now - lastScanTime < 3000) {
+    return;
+  }
+  lastScannedCode = code;
+  lastScanTime = now;
+
   try {
-    const res = await $fetch<{ ok: boolean; status: string }>(
-      "/api/admin/verify",
-      {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: { ticketCode: code },
-      }
-    );
-
-    scanCount.value++;
-    const status = res.ok ? "success" : (res.status as "used" | "expired");
-
-    lastResult.value = {
-      status,
-      ticketCode: code,
-      time: new Date().toLocaleTimeString(),
-    };
+    const res = await $fetch<ScanResult>("/api/admin/verify", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: { ticketCode: code },
+    });
 
     if (res.ok) {
       successCount.value++;
-      showSuccessToast("验票成功");
+      showResultPopup("success", "可通行", res.participant);
     } else {
-      const messages: Record<string, string> = {
-        used: "门票已使用",
-        expired: "门票已过期",
-      };
-      showToast(messages[res.status] || "验票失败");
+      const status = res.status as "used" | "expired";
+      showResultPopup(
+        status === "used" ? "used" : "expired",
+        status === "used" ? "已使用" : "已过期",
+        res.participant
+      );
     }
-  } catch (e: any) {
-    scanCount.value++;
-    lastResult.value = {
-      status: "invalid",
-      ticketCode: code,
+
+    scanRecords.value.unshift({
+      code,
+      status: res.ok ? "success" : res.status,
       time: new Date().toLocaleTimeString(),
-    };
-    showToast("无效门票码");
+      name: res.participant?.name,
+      school: res.participant?.school,
+    });
+  } catch (e) {
+    showResultPopup("invalid", "无效门票");
+
+    scanRecords.value.unshift({
+      code,
+      status: "invalid",
+      time: new Date().toLocaleTimeString(),
+    });
   }
+};
+
+const tick = () => {
+  if (!videoElement || !canvasElement || !canvasContext || !scanning.value) {
+    return;
+  }
+
+  if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+    canvasElement.width = videoElement.videoWidth;
+    canvasElement.height = videoElement.videoHeight;
+    canvasContext.drawImage(
+      videoElement,
+      0,
+      0,
+      canvasElement.width,
+      canvasElement.height
+    );
+    const imageData = canvasContext.getImageData(
+      0,
+      0,
+      canvasElement.width,
+      canvasElement.height
+    );
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: "dontInvert",
+    });
+    if (code && code.data) {
+      verifyTicket(code.data);
+    }
+  }
+  animationId = requestAnimationFrame(tick);
 };
 
 const startCamera = async () => {
@@ -71,17 +147,25 @@ const startCamera = async () => {
       video: { facingMode: "environment" },
     });
     videoElement = document.querySelector("#scan-video");
+    canvasElement = document.createElement("canvas");
+    canvasContext = canvasElement.getContext("2d");
+
     if (videoElement) {
       videoElement.srcObject = stream;
       await videoElement.play();
       scanning.value = true;
+      animationId = requestAnimationFrame(tick);
     }
   } catch (e) {
-    showToast("无法访问摄像头");
+    showResultPopup("invalid", "无法访问摄像头");
   }
 };
 
 const stopCamera = () => {
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
   if (stream) {
     stream.getTracks().forEach((track) => track.stop());
     stream = null;
@@ -89,48 +173,43 @@ const stopCamera = () => {
   scanning.value = false;
 };
 
+const goBack = () => {
+  stopCamera();
+  navigateTo("/admin");
+};
+
 const manualCode = ref("");
 const handleManualInput = () => {
   if (!manualCode.value.trim()) {
-    showToast("请输入门票码");
+    showResultPopup("invalid", "请输入门票码");
     return;
   }
   verifyTicket(manualCode.value.trim());
   manualCode.value = "";
 };
 
-const goBack = () => {
-  stopCamera();
-  navigateTo("/admin");
+const openRecords = () => {
+  showRecords.value = true;
 };
 
-const getStatusInfo = (status: string) => {
-  const info: Record<
-    string,
-    { text: string; color: string; bgColor: string }
-  > = {
-    success: {
-      text: "验票成功",
-      color: "#4caf50",
-      bgColor: "rgba(76, 175, 80, 0.15)",
-    },
-    used: {
-      text: "已使用",
-      color: "#ff9800",
-      bgColor: "rgba(255, 152, 0, 0.15)",
-    },
-    expired: {
-      text: "已过期",
-      color: "#f44336",
-      bgColor: "rgba(244, 67, 54, 0.15)",
-    },
-    invalid: {
-      text: "无效门票",
-      color: "#9e9e9e",
-      bgColor: "rgba(158, 158, 158, 0.15)",
-    },
+const getStatusColor = (status: string) => {
+  const colors: Record<string, string> = {
+    success: "#4caf50",
+    used: "#ff9800",
+    expired: "#f44336",
+    invalid: "#9e9e9e",
   };
-  return info[status] || info.invalid;
+  return colors[status] || "#9e9e9e";
+};
+
+const getStatusText = (status: string) => {
+  const texts: Record<string, string> = {
+    success: "可通行",
+    used: "已使用",
+    expired: "已过期",
+    invalid: "无效",
+  };
+  return texts[status] || "未知";
 };
 
 onMounted(() => {
@@ -142,6 +221,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopCamera();
+  if (resultTimeout) {
+    clearTimeout(resultTimeout);
+  }
 });
 </script>
 
@@ -152,9 +234,13 @@ onUnmounted(() => {
         <van-icon name="arrow-left" />
         <span>返回</span>
       </div>
-      <div class="header-title">扫码验票</div>
-      <div class="header-right">
-        <span class="count">{{ successCount }}/{{ scanCount }}</span>
+      <div class="header-center">
+        <span class="count-label">已检票</span>
+        <span class="count">{{ successCount }}</span>
+      </div>
+      <div class="header-right" @click="openRecords">
+        <van-icon name="orders-o" />
+        <span>记录</span>
       </div>
     </div>
 
@@ -188,47 +274,81 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div v-if="lastResult" class="result-section">
-      <div
-        class="result-card"
-        :style="{
-          backgroundColor: getStatusInfo(lastResult.status).bgColor,
-          borderLeftColor: getStatusInfo(lastResult.status).color,
-        }"
-      >
-        <div
-          class="result-status"
-          :style="{ color: getStatusInfo(lastResult.status).color }"
-        >
-          {{ getStatusInfo(lastResult.status).text }}
-        </div>
-        <div class="result-code">{{ lastResult.ticketCode }}</div>
-        <div class="result-time">{{ lastResult.time }}</div>
-      </div>
-    </div>
-
     <div class="input-section">
-      <div class="input-label">手动输入门票码</div>
       <div class="input-row">
         <input
           v-model="manualCode"
           type="text"
           class="code-input"
-          placeholder="输入门票码后按回车验证"
+          placeholder="手动输入门票码"
           @keyup.enter="handleManualInput"
         />
         <button class="verify-btn" @click="handleManualInput">验证</button>
       </div>
     </div>
+
+    <Transition name="result-fade">
+      <div v-if="showResult" class="result-popup" :class="resultStatus">
+        <div class="result-icon">
+          <van-icon v-if="resultStatus === 'success'" name="passed" />
+          <van-icon v-else name="close" />
+        </div>
+        <div class="result-text">{{ resultMessage }}</div>
+        <div v-if="resultParticipant" class="result-info">
+          <span class="name">{{ resultParticipant.name }}</span>
+          <span class="school">{{ resultParticipant.school }}</span>
+        </div>
+      </div>
+    </Transition>
+
+    <van-popup
+      v-model:show="showRecords"
+      position="bottom"
+      round
+      :style="{ height: '70%' }"
+    >
+      <div class="records-popup">
+        <div class="records-header">
+          <h3>检票记录</h3>
+        </div>
+        <div class="records-body">
+          <div v-if="scanRecords.length === 0" class="empty-records">
+            暂无检票记录
+          </div>
+          <div
+            v-for="(record, index) in scanRecords"
+            :key="index"
+            class="record-item"
+          >
+            <div class="record-left">
+              <div class="record-status" :style="{ color: getStatusColor(record.status) }">
+                {{ getStatusText(record.status) }}
+              </div>
+              <div v-if="record.name || record.school" class="record-participant">
+                <span v-if="record.name">{{ record.name }}</span>
+                <span v-if="record.name && record.school"> · </span>
+                <span v-if="record.school">{{ record.school }}</span>
+              </div>
+              <div class="record-code">{{ record.code }}</div>
+            </div>
+            <div class="record-time">{{ record.time }}</div>
+          </div>
+        </div>
+        <div class="records-footer">
+          <van-button block round @click="showRecords = false">关闭</van-button>
+        </div>
+      </div>
+    </van-popup>
   </div>
 </template>
 
 <style scoped lang="scss">
 .scan-page {
   min-height: 100vh;
-  background: #000;
+  background: linear-gradient(135deg, #e8f4fc 0%, #f5f7fa 100%);
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .scan-header {
@@ -236,27 +356,35 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: rgba(0, 0, 0, 0.8);
-  color: #fff;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  position: relative;
+  z-index: 10;
 
-  .header-left {
+  .header-left,
+  .header-right {
     display: flex;
     align-items: center;
     gap: 4px;
     cursor: pointer;
     font-size: 14px;
+    color: #666;
   }
 
-  .header-title {
-    font-size: 17px;
-    font-weight: 500;
-  }
+  .header-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 
-  .header-right {
+    .count-label {
+      font-size: 12px;
+      color: #999;
+    }
+
     .count {
-      font-size: 14px;
+      font-size: 28px;
+      font-weight: bold;
       color: #4caf50;
-      font-weight: 500;
     }
   }
 }
@@ -265,6 +393,9 @@ onUnmounted(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
+  background: #000;
+  margin: 12px;
+  border-radius: 16px;
 }
 
 .camera-video {
@@ -290,6 +421,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  border-radius: 16px;
 
   .overlay-content {
     text-align: center;
@@ -383,59 +515,26 @@ onUnmounted(() => {
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 
   .van-icon {
-    font-size: 28px;
-    color: #fff;
-  }
-}
-
-.result-section {
-  padding: 16px;
-}
-
-.result-card {
-  border-radius: 12px;
-  border-left: 4px solid;
-  padding: 16px;
-
-  .result-status {
-    font-size: 22px;
-    font-weight: bold;
-    margin-bottom: 8px;
-  }
-
-  .result-code {
-    font-size: 14px;
-    color: #fff;
-    font-family: monospace;
-    margin-bottom: 4px;
-    word-break: break-all;
-  }
-
-  .result-time {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
+    font-size: 24px;
+    color: #333;
   }
 }
 
 .input-section {
   padding: 16px;
-  background: #1a1a1a;
-
-  .input-label {
-    font-size: 12px;
-    color: #999;
-    margin-bottom: 8px;
-  }
+  background: #fff;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
 
   .input-row {
     display: flex;
@@ -443,16 +542,21 @@ onUnmounted(() => {
 
     .code-input {
       flex: 1;
-      background: rgba(255, 255, 255, 0.1);
-      border: none;
+      background: #f5f5f5;
+      border: 1px solid #e0e0e0;
       border-radius: 8px;
       padding: 12px 16px;
       font-size: 16px;
-      color: #fff;
+      color: #333;
       outline: none;
 
+      &:focus {
+        border-color: #1976d2;
+        background: #fff;
+      }
+
       &::placeholder {
-        color: rgba(255, 255, 255, 0.4);
+        color: #999;
       }
     }
 
@@ -470,5 +574,152 @@ onUnmounted(() => {
       }
     }
   }
+}
+
+.result-popup {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px 48px;
+  text-align: center;
+  z-index: 100;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+
+  &.success {
+    .result-icon {
+      color: #4caf50;
+    }
+    .result-text {
+      color: #4caf50;
+    }
+  }
+
+  &.used,
+  &.expired,
+  &.invalid {
+    .result-icon {
+      color: #f44336;
+    }
+    .result-text {
+      color: #f44336;
+    }
+  }
+
+  .result-icon {
+    font-size: 56px;
+    margin-bottom: 12px;
+  }
+
+  .result-text {
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+
+  .result-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #666;
+
+    .name {
+      font-weight: 500;
+    }
+
+    .school {
+      color: #999;
+    }
+  }
+}
+
+.result-fade-enter-active,
+.result-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.result-fade-enter-from,
+.result-fade-leave-to {
+  opacity: 0;
+}
+
+.records-popup {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.records-header {
+  padding: 16px;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+  }
+}
+
+.records-body {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+
+  .empty-records {
+    text-align: center;
+    color: #999;
+    padding: 40px;
+  }
+}
+
+.record-item {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+
+  .record-left {
+    flex: 1;
+  }
+
+  .record-status {
+    font-size: 15px;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+
+  .record-participant {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 4px;
+  }
+
+  .record-code {
+    font-size: 12px;
+    color: #999;
+    font-family: monospace;
+    word-break: break-all;
+  }
+
+  .record-time {
+    font-size: 12px;
+    color: #999;
+    white-space: nowrap;
+    margin-left: 12px;
+  }
+}
+
+.records-footer {
+  padding: 16px;
+  border-top: 1px solid #eee;
 }
 </style>

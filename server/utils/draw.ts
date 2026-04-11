@@ -1,7 +1,17 @@
-import { randomUUID } from "node:crypto";
 import { prisma } from "./prisma";
 
 const DEFAULT_WINNER_COUNT = 100;
+
+function generateTicketCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+export { generateTicketCode };
 
 export async function ensureDrawConfig() {
   const existing = await prisma.drawConfig.findUnique({ where: { id: 1 } });
@@ -76,16 +86,15 @@ export async function runDrawIfNeeded() {
       });
     }
 
-    const baseUrl = useRuntimeConfig().public.baseUrl;
     const nowTime = new Date();
 
     for (const winner of winners) {
-      const code = randomUUID().replace(/-/g, "");
+      const code = generateTicketCode();
       await tx.ticket.create({
         data: {
           participantId: winner.id,
           ticketCode: code,
-          qrPayload: `${baseUrl}/ticket?code=${code}`,
+          qrPayload: code,
           status: "VALID",
           issuedAt: nowTime,
           expiresAt: current.ticketExpireAt,
