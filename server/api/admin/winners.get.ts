@@ -2,27 +2,21 @@ import { defineEventHandler } from "h3";
 import { prisma } from "../../utils/prisma";
 
 export default defineEventHandler(async () => {
-  const participants = await prisma.participant.findMany({
-    select: {
-      id: true,
-      name: true,
-      school: true,
-      drawResult: true,
-      createdAt: true,
-      ip: true,
-      userAgent: true,
-      fingerprintHash: true,
+  const winners = await prisma.participant.findMany({
+    where: { drawResult: "WIN" },
+    include: {
       ticket: {
         select: {
           ticketCode: true,
           status: true,
           issuedAt: true,
           expiresAt: true,
+          usedAt: true,
         },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
   });
 
-  return participants;
+  return winners;
 });

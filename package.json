@@ -16,22 +16,18 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@mdi/font": "^7.4.47",
     "@prisma/client": "^6.17.1",
-    "@varlet/ui": "^3.14.2",
     "nuxt": "^4.4.2",
     "qrcode": "^1.5.4",
     "sass": "^1.99.0",
     "vant": "^4.9.24",
     "vue": "^3.5.32",
     "vue-router": "^5.0.4",
-    "vuetify": "^4.0.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
     "@types/qrcode": "^1.5.6",
-    "prisma": "^6.17.1",
-    "vuetify-nuxt-module": "^0.19.5"
+    "prisma": "^6.17.1"
   }
 }
