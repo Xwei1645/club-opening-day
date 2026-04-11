@@ -5,6 +5,7 @@ import { prisma } from "../../utils/prisma";
 import { normalizeFingerprintHash } from "../../utils/fingerprint";
 import { ensureDrawConfig } from "../../utils/draw";
 import { requestMeta } from "../../utils/request-meta";
+import { checkIpLocation } from "../../utils/ip-check";
 
 const applySchema = z.object({
   name: z.string().trim().min(1).max(60),
@@ -24,6 +25,15 @@ export default defineEventHandler(async (event) => {
 
   const fingerprintHash = normalizeFingerprintHash(body.fingerprintHash);
   const { ip, userAgent } = requestMeta(event);
+
+  const ipCheck = await checkIpLocation(ip);
+  if (!ipCheck.allowed) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: `本活动仅限温州市用户参与。检测到您的位置：${ipCheck.city || ipCheck.region || "未知"}`,
+    });
+  }
+
   try {
     const participant = await prisma.participant.create({
       data: {

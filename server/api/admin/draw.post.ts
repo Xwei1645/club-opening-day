@@ -1,6 +1,18 @@
-import { defineEventHandler, createError } from "h3";
+import { createError, defineEventHandler } from "h3";
 import { prisma } from "../../utils/prisma";
 import { ensureDrawConfig, generateTicketCode } from "../../utils/draw";
+import { randomInt } from "node:crypto";
+
+function secureShuffle<T>(array: T[]): T[] {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = randomInt(0, i + 1);
+    const temp = result[i];
+    result[i] = result[j]!;
+    result[j] = temp!;
+  }
+  return result;
+}
 
 export default defineEventHandler(async () => {
   const cfg = await ensureDrawConfig();
@@ -24,10 +36,7 @@ export default defineEventHandler(async () => {
     });
   }
 
-  const shuffled = participants
-    .map((p) => ({ p, sort: Math.random() }))
-    .sort((a, b) => a.sort - b.sort)
-    .map(({ p }) => p);
+  const shuffled = secureShuffle(participants);
 
   const winnerCount = Math.min(cfg.winnerCount, shuffled.length);
   const winners = shuffled.slice(0, winnerCount);
