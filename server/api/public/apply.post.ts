@@ -1,4 +1,5 @@
 import { createError, defineEventHandler, readBody } from "h3";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../../utils/prisma";
 import { normalizeFingerprintHash } from "../../utils/fingerprint";
@@ -22,23 +23,27 @@ export default defineEventHandler(async (event) => {
   }
 
   const fingerprintHash = normalizeFingerprintHash(body.fingerprintHash);
-  const exists = await prisma.participant.findUnique({
-    where: { fingerprintHash },
-  });
-  if (exists) {
-    return { ok: true, duplicate: true };
-  }
-
   const { ip, userAgent } = requestMeta(event);
-  const participant = await prisma.participant.create({
-    data: {
-      name: body.name,
-      school: body.school,
-      fingerprintHash,
-      ip,
-      userAgent,
-    },
-  });
+  try {
+    const participant = await prisma.participant.create({
+      data: {
+        name: body.name,
+        school: body.school,
+        fingerprintHash,
+        ip,
+        userAgent,
+      },
+    });
 
-  return { ok: true, duplicate: false, id: participant.id };
+    return { ok: true, duplicate: false, id: participant.id };
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return { ok: true, duplicate: true };
+    }
+
+    throw error;
+  }
 });
