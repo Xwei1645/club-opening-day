@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum DrawStatus {
+  PENDING
+  DONE
+}
+
+enum PublishStatus {
+  HIDDEN
+  PUBLIC
+}
+
+enum DrawResult {
+  PENDING
+  WIN
+  LOSE
+}
+
+enum TicketStatus {
+  VALID
+  USED
+  EXPIRED
+}
+
+enum ScanResult {
+  SUCCESS
+  USED
+  EXPIRED
+  INVALID
+}
+
+model DrawConfig {
+  id                Int           @id @default(1)
+  drawAt            DateTime
+  drawStatus        DrawStatus    @default(PENDING)
+  publishStatus     PublishStatus @default(HIDDEN)
+  resultGeneratedAt DateTime?
+  ticketExpireAt    DateTime
+  winnerCount       Int
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+model Participant {
+  id              String     @id @default(cuid())
+  name            String
+  school          String
+  fingerprintHash String     @unique
+  ip              String
+  userAgent       String
+  drawResult      DrawResult @default(PENDING)
+  createdAt       DateTime   @default(now())
+  ticket          Ticket?
+
+  @@index([drawResult])
+}
+
+model Ticket {
+  id            String      @id @default(cuid())
+  participantId String      @unique
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  ticketCode    String      @unique
+  qrPayload     String
+  status        TicketStatus @default(VALID)
+  issuedAt      DateTime    @default(now())
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime    @default(now())
+  scanLogs      ScanLog[]
+
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model ScanLog {
+  id        String     @id @default(cuid())
+  ticketId  String?
+  ticket    Ticket?    @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  result    ScanResult
+  operator  String?
+  ip        String
+  userAgent String
+  scannedAt DateTime   @default(now())
+
+  @@index([scannedAt])
+}
+
+model AdminUser {
+  id          String    @id @default(cuid())
+  username    String    @unique
+  passwordHash String
+  createdAt   DateTime  @default(now())
+  lastLoginAt DateTime?
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  targetType String
+  targetId   String
+  detail     String?
+  createdAt  DateTime @default(now())
+}
