@@ -10,6 +10,8 @@ interface DrawConfig {
   resultGeneratedAt: string | null;
   ticketExpireAt: string;
   winnerCount: number;
+  ipCheckEnabled: boolean;
+  wechatQrCodeUrl: string | null;
 }
 
 interface Participant {
@@ -43,6 +45,13 @@ interface Winner {
   } | null;
 }
 
+interface BlacklistItem {
+  id: string;
+  fingerprintHash: string;
+  reason: string | null;
+  createdAt: string;
+}
+
 const password = ref("");
 const isLoggedIn = ref(false);
 const loading = ref(false);
@@ -50,6 +59,7 @@ const loading = ref(false);
 const config = ref<DrawConfig | null>(null);
 const participants = ref<Participant[]>([]);
 const winners = ref<Winner[]>([]);
+const blacklist = ref<BlacklistItem[]>([]);
 
 const showDatePicker = ref(false);
 const showTimePicker = ref(false);
@@ -57,6 +67,7 @@ const showExpirePicker = ref(false);
 const showExpireTimePicker = ref(false);
 const showParticipantsModal = ref(false);
 const showWinnersModal = ref(false);
+const showBlacklistModal = ref(false);
 const expandedParticipant = ref<string | null>(null);
 
 const configForm = ref({
@@ -65,6 +76,7 @@ const configForm = ref({
   ticketExpireAt: "",
   ticketExpireAtTime: "",
   winnerCount: "10",
+  wechatQrCodeUrl: "",
 });
 
 const now = new Date();
@@ -157,6 +169,7 @@ const fetchConfig = async () => {
       ticketExpireAt: expireAt.toISOString().slice(0, 10),
       ticketExpireAtTime: expireAt.toTimeString().slice(0, 5),
       winnerCount: String(res.winnerCount),
+      wechatQrCodeUrl: res.wechatQrCodeUrl || "",
     };
 
     currentDate.value = [
@@ -243,6 +256,7 @@ const updateConfig = async () => {
         drawAt: selectedDrawAt.toISOString(),
         ticketExpireAt: selectedExpireAt.toISOString(),
         winnerCount: parseInt(configForm.value.winnerCount, 10) || 10,
+        wechatQrCodeUrl: configForm.value.wechatQrCodeUrl || null,
       },
     });
     showSuccessToast("保存成功");
@@ -265,6 +279,26 @@ const togglePublish = async (value: boolean) => {
       },
     });
     showSuccessToast(value ? "已公开结果" : "已隐藏结果");
+    fetchConfig();
+  } catch (e: any) {
+    showToast("操作失败");
+    fetchConfig();
+  }
+};
+
+const toggleIpCheck = async (value: boolean) => {
+  try {
+    await $fetch("/api/admin/draw-config", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: {
+        drawAt: config.value!.drawAt,
+        ticketExpireAt: config.value!.ticketExpireAt,
+        winnerCount: config.value!.winnerCount,
+        ipCheckEnabled: value,
+      },
+    });
+    showSuccessToast(value ? "已开启IP检测" : "已关闭IP检测");
     fetchConfig();
   } catch (e: any) {
     showToast("操作失败");
@@ -328,6 +362,92 @@ const resetActivity = async () => {
   } catch (e: any) {
     if (e.message !== "cancel") {
       showToast("重置失败");
+    }
+  }
+};
+
+const deleteParticipant = async (p: Participant) => {
+  try {
+    await showConfirmDialog({
+      title: "删除参与者",
+      message: `确定删除 ${p.name} 吗？`,
+      showCancelButton: true,
+      confirmButtonText: "删除并加入黑名单",
+      cancelButtonText: "仅删除",
+    }).then(() => {
+      return { addToBlacklist: true };
+    }).catch(() => {
+      return { addToBlacklist: false };
+    });
+  } catch (e: any) {
+    if (e.message === "cancel") {
+      const result = await showConfirmDialog({
+        title: "确认删除",
+        message: `确定仅删除 ${p.name} 吗？`,
+      }).then(() => true).catch(() => false);
+      if (!result) return;
+    } else {
+      return;
+    }
+  }
+
+  try {
+    const addToBlacklist = await new Promise<boolean>((resolve) => {
+      showConfirmDialog({
+        title: "加入黑名单",
+        message: "是否将该用户加入黑名单？加入后该设备将无法参与抽奖。",
+        confirmButtonText: "加入黑名单",
+        cancelButtonText: "不加入",
+      }).then(() => resolve(true)).catch(() => resolve(false));
+    });
+
+    await $fetch("/api/admin/participant/delete", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: {
+        participantId: p.id,
+        addToBlacklist,
+      },
+    });
+    showSuccessToast("删除成功");
+    fetchParticipants();
+  } catch (e: any) {
+    showToast("删除失败");
+  }
+};
+
+const fetchBlacklist = async () => {
+  try {
+    const res = await $fetch<BlacklistItem[]>("/api/admin/blacklist", {
+      headers: getAuthHeaders(),
+    });
+    blacklist.value = res;
+  } catch (e: any) {
+    showToast("获取黑名单失败");
+  }
+};
+
+const openBlacklistModal = async () => {
+  await fetchBlacklist();
+  showBlacklistModal.value = true;
+};
+
+const removeFromBlacklist = async (item: BlacklistItem) => {
+  try {
+    await showConfirmDialog({
+      title: "移出黑名单",
+      message: "确定将该用户移出黑名单吗？",
+    });
+    await $fetch("/api/admin/blacklist/remove", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: { id: item.id },
+    });
+    showSuccessToast("已移出黑名单");
+    fetchBlacklist();
+  } catch (e: any) {
+    if (e.message !== "cancel") {
+      showToast("操作失败");
     }
   }
 };
@@ -484,6 +604,22 @@ onMounted(() => {
                   min="1"
                 />
               </div>
+              <div class="status-row">
+                <span class="status-label">IP检测</span>
+                <van-switch
+                  :model-value="config?.ipCheckEnabled ?? true"
+                  @change="toggleIpCheck"
+                />
+              </div>
+              <div class="form-item">
+                <label>微信群二维码内容</label>
+                <input
+                  v-model="configForm.wechatQrCodeUrl"
+                  type="text"
+                  class="text-input"
+                  placeholder="输入微信群二维码解码内容"
+                />
+              </div>
               <van-button type="primary" size="small" block @click="updateConfig">
                 保存配置
               </van-button>
@@ -530,6 +666,18 @@ onMounted(() => {
             <div class="card-body center">
               <van-icon name="scan" class="big-icon" />
               <p>点击进入扫码验票界面</p>
+            </div>
+          </div>
+
+          <div class="admin-card" @click="openBlacklistModal">
+            <div class="card-header">
+              <van-icon name="warning-o" />
+              <span>黑名单管理</span>
+              <span class="header-count">({{ blacklist.length }}人)</span>
+            </div>
+            <div class="card-body center">
+              <van-icon name="warning-o" class="big-icon warning" />
+              <p>点击查看和管理黑名单</p>
             </div>
           </div>
 
@@ -651,6 +799,15 @@ onMounted(() => {
                     {{ p.ticket.status === 'VALID' ? '有效' : p.ticket.status === 'USED' ? '已使用' : '已过期' }}
                   </van-tag>
                 </div>
+                <div class="detail-actions">
+                  <van-button
+                    type="danger"
+                    size="small"
+                    @click.stop="deleteParticipant(p)"
+                  >
+                    删除
+                  </van-button>
+                </div>
               </div>
             </div>
           </div>
@@ -692,6 +849,41 @@ onMounted(() => {
           </div>
           <div class="modal-footer">
             <van-button block round @click="showWinnersModal = false">
+              关闭
+            </van-button>
+          </div>
+        </div>
+      </van-popup>
+
+      <van-popup
+        v-model:show="showBlacklistModal"
+        position="bottom"
+        round
+        :style="{ height: '70%' }"
+      >
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>黑名单列表 ({{ blacklist.length }}人)</h3>
+          </div>
+          <div class="modal-body">
+            <div v-if="blacklist.length === 0" class="empty-text">
+              暂无黑名单用户
+            </div>
+            <van-swipe-cell v-for="item in blacklist" :key="item.id">
+              <van-cell :title="item.fingerprintHash.slice(0, 16) + '...'" :label="formatDateTime(item.createdAt)" />
+              <template #right>
+                <van-button
+                  square
+                  type="primary"
+                  text="移出"
+                  class="swipe-btn"
+                  @click="removeFromBlacklist(item)"
+                />
+              </template>
+            </van-swipe-cell>
+          </div>
+          <div class="modal-footer">
+            <van-button block round @click="showBlacklistModal = false">
               关闭
             </van-button>
           </div>
@@ -756,6 +948,8 @@ onMounted(() => {
     }
   }
 
+  cursor: pointer;
+
   .card-header {
     display: flex;
     align-items: center;
@@ -783,6 +977,10 @@ onMounted(() => {
         font-size: 48px;
         color: #fff;
         margin-bottom: 8px;
+
+        &.warning {
+          color: #ff9800;
+        }
       }
 
       p {
@@ -830,6 +1028,24 @@ onMounted(() => {
 
     &:focus {
       border-color: #1976d2;
+    }
+  }
+
+  .text-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+    box-sizing: border-box;
+
+    &:focus {
+      border-color: #1976d2;
+    }
+
+    &::placeholder {
+      color: #bbb;
     }
   }
 }
@@ -1007,6 +1223,23 @@ onMounted(() => {
         }
       }
     }
+
+    .detail-actions {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+    }
   }
+}
+
+.empty-text {
+  text-align: center;
+  color: #999;
+  padding: 40px 0;
+  font-size: 14px;
+}
+
+.swipe-btn {
+  height: 100%;
 }
 </style>

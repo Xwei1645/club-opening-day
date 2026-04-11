@@ -8,6 +8,8 @@ const schema = z.object({
   ticketExpireAt: z.string().datetime(),
   winnerCount: z.number().int().min(1).max(100000),
   publishStatus: z.enum(["HIDDEN", "PUBLIC"]).optional(),
+  ipCheckEnabled: z.boolean().optional(),
+  wechatQrCodeUrl: z.string().max(500).nullable().optional(),
 });
 
 export default defineEventHandler(async (event) => {
@@ -30,6 +32,8 @@ export default defineEventHandler(async (event) => {
       ticketExpireAt,
       winnerCount: body.winnerCount,
       publishStatus: body.publishStatus,
+      ipCheckEnabled: body.ipCheckEnabled,
+      wechatQrCodeUrl: body.wechatQrCodeUrl,
     },
   });
 });

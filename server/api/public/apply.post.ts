@@ -26,12 +26,24 @@ export default defineEventHandler(async (event) => {
   const fingerprintHash = normalizeFingerprintHash(body.fingerprintHash);
   const { ip, userAgent } = requestMeta(event);
 
-  const ipCheck = await checkIpLocation(ip);
-  if (!ipCheck.allowed) {
+  const blacklisted = await prisma.blacklist.findUnique({
+    where: { fingerprintHash },
+  });
+  if (blacklisted) {
     throw createError({
       statusCode: 403,
-      statusMessage: `本活动仅限温州市用户参与。检测到您的位置：${ipCheck.city || ipCheck.region || "未知"}`,
+      statusMessage: "您已被禁止参与本次活动。",
     });
+  }
+
+  if (cfg.ipCheckEnabled) {
+    const ipCheck = await checkIpLocation(ip);
+    if (!ipCheck.allowed) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: `本活动仅限温州市用户参与。检测到您的位置：${ipCheck.city || ipCheck.region || "未知"}`,
+      });
+    }
   }
 
   try {

@@ -10,6 +10,7 @@ interface DrawConfig {
   publishStatus: string;
   resultGeneratedAt: string | null;
   ticketExpireAt: string;
+  wechatQrCodeUrl?: string | null;
 }
 
 interface TicketInfo {
@@ -46,6 +47,21 @@ const fingerprintHash = ref("");
 
 const resultData = ref<ResultData | null>(null);
 const qrDataUrl = ref("");
+const showWechatQrPopup = ref(false);
+const showWechatTip = ref(true);
+const wechatQrDataUrl = ref("");
+
+onMounted(() => {
+  const tipClosed = localStorage.getItem("wechatTipClosed");
+  if (tipClosed === "true") {
+    showWechatTip.value = false;
+  }
+});
+
+const closeWechatTip = () => {
+  showWechatTip.value = false;
+  localStorage.setItem("wechatTipClosed", "true");
+};
 
 const isWinner = computed(() => resultData.value?.stage === "win");
 
@@ -105,6 +121,17 @@ const fetchConfig = async () => {
   try {
     const res = await $fetch<DrawConfig>("/api/public/draw-config");
     config.value = res;
+
+    if (res.wechatQrCodeUrl) {
+      wechatQrDataUrl.value = await QRCode.toDataURL(res.wechatQrCodeUrl, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: "#07c160",
+          light: "#ffffff",
+        },
+      });
+    }
   } catch (e) {
     showToast("获取配置失败");
   }
@@ -299,6 +326,16 @@ onMounted(async () => {
                   <span class="label">有效期至</span>
                   <span class="time">{{ ticketExpiresAtFormatted }}</span>
                 </div>
+
+                <div v-if="config?.wechatQrCodeUrl" class="wechat-section">
+                  <div v-if="showWechatTip" class="wechat-tip">
+                    <span>请获奖的同学及时加入观众微信群以获得活动最新动态。</span>
+                    <van-icon name="cross" class="close-icon" @click="closeWechatTip" />
+                  </div>
+                  <div class="wechat-link" @click="showWechatQrPopup = true">
+                    观众微信群二维码
+                  </div>
+                </div>
               </div>
             </template>
           </template>
@@ -332,7 +369,7 @@ onMounted(async () => {
 
             <div class="article">
               <h6 class="article-title">二、活动参与规则</h6>
-              <p>1. <strong>参与资格</strong>：仅限非浙江省温州中学在校学生参与，浙江省温州中学在校学生参与本次抽奖的，其参与及中奖结果均视为无效。</p>
+              <p>1. <strong>参与资格</strong>：<strong>仅限非浙江省温州中学在校学生参与</strong>，浙江省温州中学在校学生参与本次抽奖的，其参与及中奖结果均视为无效。</p>
               <p>2. <strong>参与方式</strong>：用户通过主办方指定的活动网页，按照页面提示完成相关操作，即可参与本次抽奖活动。</p>
               <p>3. <strong>参与次数</strong>：为保障活动公平性，同一用户仅限参与一次抽奖，同一姓名、同一设备均认定为同一用户，禁止重复参与、恶意刷取抽奖资格，严禁借助外挂、脚本等工具违规参与活动。</p>
               <p>4. <strong>开奖方式</strong>：本次活动采用定时开奖模式，具体开奖时间于活动网站首页予以公示，开奖结果同步在活动网站正式公布。</p>
@@ -477,6 +514,23 @@ onMounted(async () => {
             提交
           </van-button>
         </div>
+      </div>
+    </van-popup>
+
+    <van-popup
+      v-model:show="showWechatQrPopup"
+      round
+      :style="{ padding: '24px', width: '80%', maxWidth: '320px' }"
+    >
+      <div class="wechat-qr-popup">
+        <h4 class="popup-title">观众微信群</h4>
+        <p class="popup-desc">请扫描下方二维码加入观众微信群，获取活动最新动态</p>
+        <div class="qr-image">
+          <img :src="wechatQrDataUrl" alt="微信群二维码" />
+        </div>
+        <van-button type="primary" block round @click="showWechatQrPopup = false">
+          关闭
+        </van-button>
       </div>
     </van-popup>
   </div>
@@ -718,6 +772,38 @@ onMounted(async () => {
           font-size: 12px;
         }
       }
+
+      .wechat-section {
+        margin-top: 16px;
+
+        .wechat-tip {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 8px 10px;
+          background: #fff3e0;
+          border-radius: 6px;
+          margin-bottom: 8px;
+          font-size: 12px;
+          color: #e65100;
+          text-align: left;
+
+          .close-icon {
+            flex-shrink: 0;
+            margin-left: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #e65100;
+          }
+        }
+
+        .wechat-link {
+          color: #1976d2;
+          font-size: 14px;
+          text-decoration: underline;
+          cursor: pointer;
+        }
+      }
     }
   }
 }
@@ -818,5 +904,31 @@ onMounted(async () => {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
+}
+
+.wechat-qr-popup {
+  text-align: center;
+
+  .popup-title {
+    margin: 0 0 8px;
+    font-size: 18px;
+    color: #333;
+  }
+
+  .popup-desc {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: #666;
+  }
+
+  .qr-image {
+    margin-bottom: 16px;
+
+    img {
+      width: 200px;
+      height: 200px;
+      border-radius: 8px;
+    }
+  }
 }
 </style>

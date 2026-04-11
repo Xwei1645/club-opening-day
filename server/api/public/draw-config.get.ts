@@ -9,5 +9,6 @@ export default defineEventHandler(async () => {
     publishStatus: cfg.publishStatus,
     resultGeneratedAt: cfg.resultGeneratedAt,
     ticketExpireAt: cfg.ticketExpireAt,
+    wechatQrCodeUrl: cfg.wechatQrCodeUrl,
   };
 });
