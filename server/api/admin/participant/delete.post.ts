@@ -27,9 +27,14 @@ export default defineEventHandler(async (event) => {
         where: { fingerprintHash: participant.fingerprintHash },
         create: {
           fingerprintHash: participant.fingerprintHash,
+          name: participant.name,
+          school: participant.school,
           reason: "Deleted by admin",
         },
-        update: {},
+        update: {
+          name: participant.name,
+          school: participant.school,
+        },
       });
     }
 

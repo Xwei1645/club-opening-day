@@ -114,6 +114,8 @@ model AuditLog {
 model Blacklist {
   id              String   @id @default(cuid())
   fingerprintHash String   @unique
+  name            String?
+  school          String?
   reason          String?
   createdAt       DateTime @default(now())
 
