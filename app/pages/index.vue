@@ -315,6 +315,17 @@ onMounted(async () => {
           </template>
 
           <template v-else-if="resultData">
+            <div class="ticket-info">
+              <div class="info-item">
+                <span class="label">姓名</span>
+                <span class="value">{{ resultData.name }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">学校</span>
+                <span class="value">{{ resultData.school }}</span>
+              </div>
+            </div>
+
             <template v-if="resultData.stage === 'waiting'">
               <div class="status-box">
                 <van-icon name="clock-o" class="status-icon" />
@@ -760,6 +771,30 @@ onMounted(async () => {
       }
     }
 
+    .ticket-info {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 16px;
+
+      .info-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        .label {
+          color: #999;
+          font-size: 14px;
+        }
+
+        .value {
+          color: #333;
+          font-size: 14px;
+          font-weight: 500;
+        }
+      }
+    }
+
     .ticket-section {
       text-align: center;
 
@@ -787,30 +822,6 @@ onMounted(async () => {
         &.expired {
           background: #ffebee;
           color: #c62828;
-        }
-      }
-
-      .ticket-info {
-        display: flex;
-        justify-content: center;
-        gap: 24px;
-        margin-bottom: 16px;
-
-        .info-item {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-
-          .label {
-            color: #999;
-            font-size: 14px;
-          }
-
-          .value {
-            color: #333;
-            font-size: 14px;
-            font-weight: 500;
-          }
         }
       }
 
