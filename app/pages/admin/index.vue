@@ -258,13 +258,19 @@ const updateConfig = async () => {
       return;
     }
 
+    const winnerCountNum = parseInt(configForm.value.winnerCount, 10);
+    if (!winnerCountNum || winnerCountNum < 1) {
+      showToast("中奖人数必须大于0");
+      return;
+    }
+
     await $fetch("/api/admin/draw-config", {
       method: "POST",
       headers: getAuthHeaders(),
       body: {
         drawAt: selectedDrawAt.toISOString(),
         ticketExpireAt: selectedExpireAt.toISOString(),
-        winnerCount: parseInt(configForm.value.winnerCount, 10) || 10,
+        winnerCount: winnerCountNum,
         wechatQrCodeUrl: configForm.value.wechatQrCodeUrl || null,
       },
     });

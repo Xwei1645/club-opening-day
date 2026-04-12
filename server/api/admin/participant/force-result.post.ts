@@ -21,16 +21,31 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  const cfg = await prisma.drawConfig.findUnique({ where: { id: 1 } });
+  const winnerCount = cfg?.winnerCount || 10;
+  const totalCount = await prisma.participant.count();
+  const currentForcedWin = await prisma.participant.count({
+    where: { forceResult: "WIN", id: { not: body.participantId } },
+  });
+  const currentForcedLose = await prisma.participant.count({
+    where: { forceResult: "LOSE", id: { not: body.participantId } },
+  });
+
   if (body.forceResult === "WIN") {
-    const cfg = await prisma.drawConfig.findUnique({ where: { id: 1 } });
-    const forcedWinCount = await prisma.participant.count({
-      where: { forceResult: "WIN", id: { not: body.participantId } },
-    });
-    const winnerCount = cfg?.winnerCount || 10;
-    if (forcedWinCount + 1 > winnerCount) {
+    if (currentForcedWin + 1 > winnerCount) {
       throw createError({
         statusCode: 400,
-        statusMessage: `强制中奖人数(${forcedWinCount + 1})超过设定的中奖人数(${winnerCount})`,
+        statusMessage: `强制中奖人数(${currentForcedWin + 1})超过设定的中奖人数(${winnerCount})`,
+      });
+    }
+  }
+
+  if (body.forceResult === "LOSE") {
+    const maxLoseCount = totalCount - winnerCount;
+    if (currentForcedLose + 1 > maxLoseCount) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `必不中人数(${currentForcedLose + 1})超过最大可设置数量(${maxLoseCount}人)，会导致中奖人数不足`,
       });
     }
   }
