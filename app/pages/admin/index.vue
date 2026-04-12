@@ -74,6 +74,7 @@ const showBlacklistModal = ref(false);
 const expandedParticipant = ref<string | null>(null);
 const expandedBlacklist = ref<Set<string>>(new Set());
 const participantSearch = ref("");
+const showDuplicates = ref(false);
 
 const configForm = ref({
   drawAt: "",
@@ -210,6 +211,9 @@ const fetchParticipants = async () => {
     const params = new URLSearchParams();
     if (participantSearch.value.trim()) {
       params.set("search", participantSearch.value.trim());
+    }
+    if (showDuplicates.value) {
+      params.set("duplicates", "true");
     }
     const res = await $fetch<Participant[]>(`/api/admin/participants?${params.toString()}`, {
       headers: getAuthHeaders(),
@@ -774,8 +778,19 @@ onMounted(() => {
             <van-search
               v-model="participantSearch"
               placeholder="搜索姓名或学校"
+              show-action
               @search="fetchParticipants"
-            />
+            >
+              <template #action>
+                <van-button
+                  size="small"
+                  :type="showDuplicates ? 'primary' : 'default'"
+                  @click="showDuplicates = !showDuplicates; fetchParticipants()"
+                >
+                  {{ showDuplicates ? '全部' : '重名' }}
+                </van-button>
+              </template>
+            </van-search>
           </div>
           <div class="modal-body participant-list">
             <div

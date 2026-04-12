@@ -4,15 +4,28 @@ import { prisma } from "../../utils/prisma";
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
   const search = (query.search as string) || "";
+  const duplicates = query.duplicates === "true";
 
-  const where = search
-    ? {
-        OR: [
-          { name: { contains: search, mode: "insensitive" as const } },
-          { school: { contains: search, mode: "insensitive" as const } },
-        ],
-      }
-    : {};
+  let where: any = {};
+
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" as const } },
+      { school: { contains: search, mode: "insensitive" as const } },
+    ];
+  }
+
+  if (duplicates) {
+    const duplicateNames = await prisma.participant.groupBy({
+      by: ["name"],
+      having: {
+        name: { _count: { gt: 1 } },
+      },
+    });
+
+    const names = duplicateNames.map((d) => d.name);
+    where.name = { in: names };
+  }
 
   const participants = await prisma.participant.findMany({
     where,
