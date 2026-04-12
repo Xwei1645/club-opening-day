@@ -12,6 +12,7 @@ import {
   Loading,
   NavBar,
   Popup,
+  Search,
   Switch,
   Tab,
   Tabs,
@@ -35,6 +36,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.use(Loading);
   nuxtApp.vueApp.use(NavBar);
   nuxtApp.vueApp.use(Popup);
+  nuxtApp.vueApp.use(Search);
   nuxtApp.vueApp.use(Switch);
   nuxtApp.vueApp.use(Tab);
   nuxtApp.vueApp.use(Tabs);

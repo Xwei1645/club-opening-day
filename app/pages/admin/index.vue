@@ -73,6 +73,7 @@ const showWinnersModal = ref(false);
 const showBlacklistModal = ref(false);
 const expandedParticipant = ref<string | null>(null);
 const expandedBlacklist = ref<Set<string>>(new Set());
+const participantSearch = ref("");
 
 const configForm = ref({
   drawAt: "",
@@ -206,7 +207,11 @@ const fetchConfig = async () => {
 
 const fetchParticipants = async () => {
   try {
-    const res = await $fetch<Participant[]>("/api/admin/participants", {
+    const params = new URLSearchParams();
+    if (participantSearch.value.trim()) {
+      params.set("search", participantSearch.value.trim());
+    }
+    const res = await $fetch<Participant[]>(`/api/admin/participants?${params.toString()}`, {
       headers: getAuthHeaders(),
     });
     participants.value = res;
@@ -759,6 +764,13 @@ onMounted(() => {
           <div class="modal-header">
             <h3>参与者列表 ({{ participants.length }}人)</h3>
           </div>
+          <div class="search-box">
+            <van-search
+              v-model="participantSearch"
+              placeholder="搜索姓名或学校"
+              @search="fetchParticipants"
+            />
+          </div>
           <div class="modal-body participant-list">
             <div
               v-for="p in participants"
@@ -1181,6 +1193,15 @@ onMounted(() => {
     margin: 0;
     font-size: 18px;
     color: #333;
+  }
+}
+
+.search-box {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+
+  .van-search {
+    padding: 0 12px;
   }
 }
 
