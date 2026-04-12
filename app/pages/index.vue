@@ -215,12 +215,32 @@ const handleAgree = () => {
 };
 
 const handleSubmit = async () => {
-  if (!name.value.trim()) {
+  const chineseRegex = /^[\u4e00-\u9fa5]+$/;
+  const trimmedName = name.value.trim();
+  const trimmedSchool = school.value.trim();
+
+  if (!trimmedName) {
     showToast("请输入姓名");
     return;
   }
-  if (!school.value.trim()) {
+  if (!chineseRegex.test(trimmedName)) {
+    showToast("姓名必须为中文");
+    return;
+  }
+  if (trimmedName.length < 2 || trimmedName.length > 4) {
+    showToast("姓名需要2-4个中文字");
+    return;
+  }
+  if (!trimmedSchool) {
     showToast("请输入学校");
+    return;
+  }
+  if (!chineseRegex.test(trimmedSchool)) {
+    showToast("学校名称必须为中文");
+    return;
+  }
+  if (trimmedSchool.length < 3) {
+    showToast("学校名称需要至少3个字");
     return;
   }
 
