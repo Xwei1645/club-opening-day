@@ -51,6 +51,9 @@ importers:
       prisma:
         specifier: ^6.17.1
         version: 6.17.1(magicast@0.5.2)(typescript@6.0.2)
+      terser:
+        specifier: ^5.46.1
+        version: 5.46.1
 
 packages:
 
