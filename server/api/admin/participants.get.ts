@@ -8,6 +8,7 @@ export default defineEventHandler(async () => {
       name: true,
       school: true,
       drawResult: true,
+      forceResult: true,
       createdAt: true,
       ip: true,
       userAgent: true,

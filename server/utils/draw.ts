@@ -57,7 +57,25 @@ export async function runDrawIfNeeded() {
       orderBy: { createdAt: "asc" },
     });
 
-    const shuffled = [...participants];
+    const forcedWinners = participants.filter(
+      (p: any) => p.forceResult === "WIN"
+    );
+    const forcedLosers = participants.filter(
+      (p: any) => p.forceResult === "LOSE"
+    );
+    const normalParticipants = participants.filter(
+      (p: any) => p.forceResult === null
+    );
+
+    const forcedWinnerIds = new Set(forcedWinners.map((p: any) => p.id));
+    const forcedLoserIds = new Set(forcedLosers.map((p: any) => p.id));
+
+    const remainingWinnerSlots = Math.max(
+      0,
+      current.winnerCount - forcedWinners.length
+    );
+
+    const shuffled = [...normalParticipants];
     for (let i = shuffled.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
       const tmp = shuffled[i];
@@ -65,30 +83,44 @@ export async function runDrawIfNeeded() {
       shuffled[j] = tmp;
     }
 
-    const winnerCount = Math.min(current.winnerCount, shuffled.length);
-    const winners = shuffled.slice(0, winnerCount);
-    const winnerIds = new Set(winners.map((item) => item.id));
+    const normalWinners = shuffled.slice(0, remainingWinnerSlots);
+    const normalWinnerIds = new Set(normalWinners.map((p: any) => p.id));
 
-    if (winners.length > 0) {
+    const allWinnerIds = new Set([...forcedWinnerIds, ...normalWinnerIds]);
+
+    if (forcedWinners.length > 0) {
       await tx.participant.updateMany({
-        where: { id: { in: winners.map((w) => w.id) } },
+        where: { id: { in: [...forcedWinnerIds] } },
         data: { drawResult: "WIN" },
       });
     }
 
-    const losers = participants
-      .filter((p: any) => !winnerIds.has(p.id))
-      .map((p: any) => p.id);
-    if (losers.length > 0) {
+    if (normalWinners.length > 0) {
       await tx.participant.updateMany({
-        where: { id: { in: losers } },
+        where: { id: { in: [...normalWinnerIds] } },
+        data: { drawResult: "WIN" },
+      });
+    }
+
+    const loserIds = normalParticipants
+      .filter((p: any) => !normalWinnerIds.has(p.id))
+      .map((p: any) => p.id);
+
+    if (forcedLosers.length > 0) {
+      loserIds.push(...forcedLoserIds);
+    }
+
+    if (loserIds.length > 0) {
+      await tx.participant.updateMany({
+        where: { id: { in: loserIds } },
         data: { drawResult: "LOSE" },
       });
     }
 
     const nowTime = new Date();
+    const allWinners = [...forcedWinners, ...normalWinners];
 
-    for (const winner of winners) {
+    for (const winner of allWinners) {
       const code = generateTicketCode();
       await tx.ticket.create({
         data: {
@@ -110,7 +142,7 @@ export async function runDrawIfNeeded() {
       },
     });
 
-    return { executed: true, winnerCount: winners.length };
+    return { executed: true, winnerCount: allWinners.length };
   });
 }
 

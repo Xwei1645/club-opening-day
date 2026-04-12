@@ -19,6 +19,7 @@ interface Participant {
   name: string;
   school: string;
   drawResult: string;
+  forceResult: string | null;
   createdAt: string;
   ip: string;
   userAgent: string;
@@ -395,6 +396,24 @@ const deleteParticipant = async (p: Participant) => {
   }
 };
 
+const setForceResult = async (p: Participant, result: "WIN" | "LOSE") => {
+  try {
+    const newResult = p.forceResult === result ? null : result;
+    await $fetch("/api/admin/participant/force-result", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: {
+        participantId: p.id,
+        forceResult: newResult,
+      },
+    });
+    showSuccessToast(newResult === null ? "已取消强制" : newResult === "WIN" ? "已设为必中" : "已设为必不中");
+    fetchParticipants();
+  } catch (e: any) {
+    showToast(e.data?.statusMessage || "设置失败");
+  }
+};
+
 const fetchBlacklist = async () => {
   try {
     const res = await $fetch<BlacklistItem[]>("/api/admin/blacklist", {
@@ -753,6 +772,12 @@ onMounted(() => {
                   <div class="item-school">{{ p.school }}</div>
                 </div>
                 <div class="item-right">
+                  <van-tag v-if="p.forceResult === 'WIN'" type="success" size="medium" plain>
+                    必中
+                  </van-tag>
+                  <van-tag v-else-if="p.forceResult === 'LOSE'" type="warning" size="medium" plain>
+                    必不中
+                  </van-tag>
                   <van-tag v-if="p.drawResult === 'WIN'" type="success" size="medium">
                     中奖
                   </van-tag>
@@ -801,6 +826,22 @@ onMounted(() => {
                   </van-tag>
                 </div>
                 <div class="detail-actions">
+                  <template v-if="config?.drawStatus !== 'DONE'">
+                    <van-button
+                      size="small"
+                      :type="p.forceResult === 'WIN' ? 'success' : 'default'"
+                      @click.stop="setForceResult(p, 'WIN')"
+                    >
+                      必中
+                    </van-button>
+                    <van-button
+                      size="small"
+                      :type="p.forceResult === 'LOSE' ? 'warning' : 'default'"
+                      @click.stop="setForceResult(p, 'LOSE')"
+                    >
+                      必不中
+                    </van-button>
+                  </template>
                   <van-button
                     type="danger"
                     size="small"
@@ -1303,6 +1344,9 @@ onMounted(() => {
       margin-top: 12px;
       padding-top: 12px;
       border-top: 1px solid #eee;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
     }
   }
 }

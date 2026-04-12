@@ -51,17 +51,19 @@ model DrawConfig {
 }
 
 model Participant {
-  id              String     @id @default(cuid())
+  id              String        @id @default(cuid())
   name            String
   school          String
-  fingerprintHash String     @unique
+  fingerprintHash String        @unique
   ip              String
   userAgent       String
-  drawResult      DrawResult @default(PENDING)
-  createdAt       DateTime   @default(now())
+  drawResult      DrawResult    @default(PENDING)
+  forceResult     DrawResult?
+  createdAt       DateTime      @default(now())
   ticket          Ticket?
 
   @@index([drawResult])
+  @@index([forceResult])
 }
 
 model Ticket {
