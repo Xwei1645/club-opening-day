@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
-import { showToast, showSuccessToast, showConfirmDialog } from "vant";
+import { showToast, showSuccessToast } from "vant";
 import { buildFingerprintHash, updateFingerprint } from "../utils/fingerprint";
 import QRCode from "qrcode";
 
@@ -200,31 +200,6 @@ const handleParticipate = () => {
   }, 1000);
 };
 
-const handleWithdraw = async () => {
-  try {
-    await showConfirmDialog({
-      title: "确认退出",
-      message: "确定要退出本次活动吗？退出后，你的信息将不被保留。如退出后欲重新参与，你可以再次填写信息。",
-      confirmButtonText: "确认退出",
-      cancelButtonText: "取消",
-    });
-
-    const fp = await buildFingerprintHash();
-    await $fetch("/api/public/withdraw", {
-      method: "POST",
-      body: { fingerprintHash: fp },
-    });
-
-    showSuccessToast("已退出活动");
-    resultData.value = null;
-    fetchResult();
-  } catch (e: any) {
-    if (e !== "cancel") {
-      showToast(e.data?.message || "退出失败");
-    }
-  }
-};
-
 const handleScroll = (e: Event) => {
   const target = e.target as HTMLElement;
   const isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 50;
@@ -355,9 +330,6 @@ onMounted(async () => {
               <div class="status-box">
                 <van-icon name="clock-o" class="status-icon" />
                 <div class="status-text">等待开奖</div>
-              </div>
-              <div class="withdraw-link" @click="handleWithdraw">
-                不再参与
               </div>
             </template>
 
@@ -795,19 +767,6 @@ onMounted(async () => {
       .status-text {
         font-size: 16px;
         font-weight: 500;
-        color: #666;
-      }
-    }
-
-    .withdraw-link {
-      text-align: center;
-      margin-top: 16px;
-      font-size: 13px;
-      color: #999;
-      text-decoration: underline;
-      cursor: pointer;
-
-      &:active {
         color: #666;
       }
     }
