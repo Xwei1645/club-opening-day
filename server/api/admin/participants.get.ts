@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
         },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: duplicates ? [{ name: "asc" }, { createdAt: "desc" }] : { createdAt: "desc" },
   });
 
   return participants;
