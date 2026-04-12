@@ -7,9 +7,20 @@ import { ensureDrawConfig } from "../../utils/draw";
 import { requestMeta } from "../../utils/request-meta";
 import { checkIpLocation } from "../../utils/ip-check";
 
+const chineseRegex = /^[\u4e00-\u9fa5]+$/;
+
 const applySchema = z.object({
-  name: z.string().trim().min(1).max(60),
-  school: z.string().trim().min(1).max(120),
+  name: z
+    .string()
+    .trim()
+    .regex(chineseRegex, "姓名必须为中文")
+    .min(2, "姓名需要2-4个中文字")
+    .max(4, "姓名需要2-4个中文字"),
+  school: z
+    .string()
+    .trim()
+    .regex(chineseRegex, "学校名称必须为中文")
+    .min(3, "学校名称需要至少3个字"),
   fingerprintHash: z.string().trim().min(8).max(200),
 });
 

@@ -1,4 +1,4 @@
-import { defineEventHandler, createError } from "h3";
+import { defineEventHandler } from "h3";
 import { prisma } from "../../utils/prisma";
 
 export default defineEventHandler(async () => {
@@ -6,6 +6,7 @@ export default defineEventHandler(async () => {
     await tx.scanLog.deleteMany({});
     await tx.ticket.deleteMany({});
     await tx.participant.deleteMany({});
+    await tx.blacklist.deleteMany({});
     await tx.drawConfig.update({
       where: { id: 1 },
       data: {

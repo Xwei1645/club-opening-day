@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, nextTick, watch } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { showToast, showSuccessToast } from "vant";
-import { buildFingerprintHash } from "../utils/fingerprint";
+import { buildFingerprintHash, updateFingerprint } from "../utils/fingerprint";
 import QRCode from "qrcode";
 
 interface DrawConfig {
@@ -50,6 +50,9 @@ const qrDataUrl = ref("");
 const showWechatQrPopup = ref(false);
 const showWechatTip = ref(true);
 const wechatQrDataUrl = ref("");
+const showRebindPopup = ref(false);
+const rebindFingerprint = ref("");
+const rebinding = ref(false);
 
 onMounted(() => {
   const tipClosed = localStorage.getItem("wechatTipClosed");
@@ -61,6 +64,36 @@ onMounted(() => {
 const closeWechatTip = () => {
   showWechatTip.value = false;
   localStorage.setItem("wechatTipClosed", "true");
+};
+
+const handleRebind = async () => {
+  if (!rebindFingerprint.value.trim()) {
+    showToast("请输入指纹");
+    return;
+  }
+
+  rebinding.value = true;
+  try {
+    const newFp = await buildFingerprintHash();
+    await $fetch("/api/public/rebind", {
+      method: "POST",
+      body: {
+        oldFingerprint: rebindFingerprint.value.trim(),
+        newFingerprint: newFp,
+      },
+    });
+
+    updateFingerprint(newFp);
+    fingerprintHash.value = newFp;
+    showRebindPopup.value = false;
+    rebindFingerprint.value = "";
+    showSuccessToast("找回成功");
+    await fetchResult();
+  } catch (e: any) {
+    showToast(e.data?.statusMessage || "找回失败");
+  } finally {
+    rebinding.value = false;
+  }
 };
 
 const isWinner = computed(() => resultData.value?.stage === "win");
@@ -126,10 +159,6 @@ const fetchConfig = async () => {
       wechatQrDataUrl.value = await QRCode.toDataURL(res.wechatQrCodeUrl, {
         width: 200,
         margin: 2,
-        color: {
-          dark: "#07c160",
-          light: "#ffffff",
-        },
       });
     }
   } catch (e) {
@@ -329,7 +358,7 @@ onMounted(async () => {
 
                 <div v-if="config?.wechatQrCodeUrl" class="wechat-section">
                   <div v-if="showWechatTip" class="wechat-tip">
-                    <span>请获奖的同学及时加入观众微信群以获得活动最新动态。</span>
+                    <span>请加入观众微信群获取活动最新动态</span>
                     <van-icon name="cross" class="close-icon" @click="closeWechatTip" />
                   </div>
                   <div class="wechat-link" @click="showWechatQrPopup = true">
@@ -340,8 +369,34 @@ onMounted(async () => {
             </template>
           </template>
         </div>
+        <div v-if="!resultData?.participated" class="card-footer">
+          <span class="recover-link" @click="showRebindPopup = true">找回抽奖记录</span>
+        </div>
       </div>
     </div>
+
+    <van-popup
+      v-model:show="showRebindPopup"
+      round
+      :style="{ padding: '24px', width: '80%', maxWidth: '320px' }"
+    >
+      <div class="rebind-popup">
+        <h4 class="popup-title">找回抽奖记录</h4>
+        <p class="popup-desc">请输入之前保存的指纹</p>
+        <van-field
+          v-model="rebindFingerprint"
+          type="textarea"
+          rows="2"
+          autosize
+          placeholder="粘贴指纹"
+          class="rebind-input"
+        />
+        <div class="rebind-actions">
+          <van-button block round @click="showRebindPopup = false">取消</van-button>
+          <van-button type="primary" block round :loading="rebinding" @click="handleRebind">确认</van-button>
+        </div>
+      </div>
+    </van-popup>
 
     <van-popup
       v-model:show="showAgreement"
@@ -624,6 +679,21 @@ onMounted(async () => {
     }
   }
 
+  .card-footer {
+    padding: 12px 24px 16px;
+    text-align: center;
+
+    .recover-link {
+      font-size: 12px;
+      color: #999;
+      cursor: pointer;
+
+      &:hover {
+        color: #666;
+      }
+    }
+  }
+
   .card-body {
     padding: 20px 24px 28px;
 
@@ -790,7 +860,7 @@ onMounted(async () => {
 
           .close-icon {
             flex-shrink: 0;
-            margin-left: 6px;
+            margin-left: 8px;
             cursor: pointer;
             font-size: 14px;
             color: #e65100;
@@ -800,7 +870,6 @@ onMounted(async () => {
         .wechat-link {
           color: #1976d2;
           font-size: 14px;
-          text-decoration: underline;
           cursor: pointer;
         }
       }
@@ -904,6 +973,35 @@ onMounted(async () => {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
+}
+
+.rebind-popup {
+  text-align: center;
+
+  .popup-title {
+    margin: 0 0 8px;
+    font-size: 18px;
+    color: #333;
+  }
+
+  .popup-desc {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: #666;
+  }
+
+  .rebind-input {
+    margin-bottom: 16px;
+  }
+
+  .rebind-actions {
+    display: flex;
+    gap: 12px;
+
+    .van-button {
+      flex: 1;
+    }
+  }
 }
 
 .wechat-qr-popup {

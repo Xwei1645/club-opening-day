@@ -50,6 +50,8 @@ interface BlacklistItem {
   fingerprintHash: string;
   reason: string | null;
   createdAt: string;
+  name: string | null;
+  school: string | null;
 }
 
 const password = ref("");
@@ -69,6 +71,7 @@ const showParticipantsModal = ref(false);
 const showWinnersModal = ref(false);
 const showBlacklistModal = ref(false);
 const expandedParticipant = ref<string | null>(null);
+const expandedBlacklist = ref<Set<string>>(new Set());
 
 const configForm = ref({
   drawAt: "",
@@ -368,51 +371,27 @@ const resetActivity = async () => {
 
 const deleteParticipant = async (p: Participant) => {
   try {
-    await showConfirmDialog({
+    const result = await showConfirmDialog({
       title: "删除参与者",
-      message: `确定删除 ${p.name} 吗？`,
-      showCancelButton: true,
+      message: `确定删除 ${p.name} 吗？是否同时将该设备加入黑名单？`,
       confirmButtonText: "删除并加入黑名单",
       cancelButtonText: "仅删除",
-    }).then(() => {
-      return { addToBlacklist: true };
-    }).catch(() => {
-      return { addToBlacklist: false };
-    });
-  } catch (e: any) {
-    if (e.message === "cancel") {
-      const result = await showConfirmDialog({
-        title: "确认删除",
-        message: `确定仅删除 ${p.name} 吗？`,
-      }).then(() => true).catch(() => false);
-      if (!result) return;
-    } else {
-      return;
-    }
-  }
-
-  try {
-    const addToBlacklist = await new Promise<boolean>((resolve) => {
-      showConfirmDialog({
-        title: "加入黑名单",
-        message: "是否将该用户加入黑名单？加入后该设备将无法参与抽奖。",
-        confirmButtonText: "加入黑名单",
-        cancelButtonText: "不加入",
-      }).then(() => resolve(true)).catch(() => resolve(false));
-    });
+    }).then(() => true).catch(() => false);
 
     await $fetch("/api/admin/participant/delete", {
       method: "POST",
       headers: getAuthHeaders(),
       body: {
         participantId: p.id,
-        addToBlacklist,
+        addToBlacklist: result,
       },
     });
     showSuccessToast("删除成功");
     fetchParticipants();
   } catch (e: any) {
-    showToast("删除失败");
+    if (e.message !== "cancel") {
+      showToast("删除失败");
+    }
   }
 };
 
@@ -429,7 +408,18 @@ const fetchBlacklist = async () => {
 
 const openBlacklistModal = async () => {
   await fetchBlacklist();
+  expandedBlacklist.value = new Set();
   showBlacklistModal.value = true;
+};
+
+const toggleBlacklistExpand = (id: string) => {
+  const newSet = new Set(expandedBlacklist.value);
+  if (newSet.has(id)) {
+    newSet.delete(id);
+  } else {
+    newSet.add(id);
+  }
+  expandedBlacklist.value = newSet;
 };
 
 const removeFromBlacklist = async (item: BlacklistItem) => {
@@ -487,6 +477,15 @@ const onExpireTimeConfirm = (values: { selectedValues: string[] }) => {
   expireTime.value = values.selectedValues;
   configForm.value.ticketExpireAtTime = formatTime(values.selectedValues);
   showExpireTimePicker.value = false;
+};
+
+const copyFingerprint = async (fingerprint: string) => {
+  try {
+    await navigator.clipboard.writeText(fingerprint);
+    showSuccessToast("已复制指纹");
+  } catch (e) {
+    showToast("复制失败");
+  }
 };
 
 onMounted(() => {
@@ -655,6 +654,15 @@ onMounted(() => {
               >
                 查看参与者列表
               </van-button>
+              <van-button
+                type="default"
+                size="small"
+                block
+                style="margin-top: 8px"
+                @click="openBlacklistModal"
+              >
+                黑名单管理
+              </van-button>
             </div>
           </div>
 
@@ -666,18 +674,6 @@ onMounted(() => {
             <div class="card-body center">
               <van-icon name="scan" class="big-icon" />
               <p>点击进入扫码验票界面</p>
-            </div>
-          </div>
-
-          <div class="admin-card" @click="openBlacklistModal">
-            <div class="card-header">
-              <van-icon name="warning-o" />
-              <span>黑名单管理</span>
-              <span class="header-count">({{ blacklist.length }}人)</span>
-            </div>
-            <div class="card-body center">
-              <van-icon name="warning-o" class="big-icon warning" />
-              <p>点击查看和管理黑名单</p>
             </div>
           </div>
 
@@ -785,7 +781,12 @@ onMounted(() => {
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">指纹</span>
-                  <span class="detail-value fingerprint">{{ p.fingerprintHash }}</span>
+                  <span
+                    class="detail-value fingerprint copyable"
+                    @click="copyFingerprint(p.fingerprintHash)"
+                  >
+                    {{ p.fingerprintHash }}
+                  </span>
                 </div>
                 <div v-if="p.ticket" class="detail-row">
                   <span class="detail-label">门票码</span>
@@ -869,18 +870,38 @@ onMounted(() => {
             <div v-if="blacklist.length === 0" class="empty-text">
               暂无黑名单用户
             </div>
-            <van-swipe-cell v-for="item in blacklist" :key="item.id">
-              <van-cell :title="item.fingerprintHash.slice(0, 16) + '...'" :label="formatDateTime(item.createdAt)" />
-              <template #right>
+            <div v-for="item in blacklist" :key="item.id" class="blacklist-item">
+              <van-cell
+                :title="item.name || '未知'"
+                :label="item.school || '未知学校'"
+                is-link
+                @click="toggleBlacklistExpand(item.id)"
+              />
+              <div v-if="expandedBlacklist.has(item.id)" class="blacklist-detail">
+                <div class="detail-row">
+                  <span class="detail-label">指纹</span>
+                  <span
+                    class="detail-value fingerprint copyable"
+                    @click="copyFingerprint(item.fingerprintHash)"
+                  >
+                    {{ item.fingerprintHash }}
+                  </span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">加入时间</span>
+                  <span class="detail-value">{{ formatDateTime(item.createdAt) }}</span>
+                </div>
                 <van-button
-                  square
                   type="primary"
-                  text="移出"
-                  class="swipe-btn"
+                  size="small"
+                  block
+                  style="margin-top: 12px"
                   @click="removeFromBlacklist(item)"
-                />
-              </template>
-            </van-swipe-cell>
+                >
+                  移出黑名单
+                </van-button>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <van-button block round @click="showBlacklistModal = false">
@@ -977,10 +998,6 @@ onMounted(() => {
         font-size: 48px;
         color: #fff;
         margin-bottom: 8px;
-
-        &.warning {
-          color: #ff9800;
-        }
       }
 
       p {
@@ -1132,6 +1149,56 @@ onMounted(() => {
   overflow-y: auto;
 }
 
+.blacklist-item {
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.blacklist-detail {
+  padding: 12px 16px;
+  background: #f9f9f9;
+  border-top: 1px solid #eee;
+
+  .detail-row {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 8px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    .detail-label {
+      width: 70px;
+      font-size: 12px;
+      color: #999;
+      flex-shrink: 0;
+    }
+
+    .detail-value {
+      font-size: 12px;
+      color: #333;
+      word-break: break-all;
+
+      &.fingerprint {
+        font-family: monospace;
+        font-size: 10px;
+
+        &.copyable {
+          cursor: pointer;
+
+          &:hover {
+            color: #666;
+          }
+        }
+      }
+    }
+  }
+}
+
 .modal-footer {
   padding: 16px;
   border-top: 1px solid #eee;
@@ -1220,6 +1287,14 @@ onMounted(() => {
         &.fingerprint {
           font-family: monospace;
           font-size: 10px;
+
+          &.copyable {
+            cursor: pointer;
+
+            &:hover {
+              color: #666;
+            }
+          }
         }
       }
     }
@@ -1237,9 +1312,5 @@ onMounted(() => {
   color: #999;
   padding: 40px 0;
   font-size: 14px;
-}
-
-.swipe-btn {
-  height: 100%;
 }
 </style>
