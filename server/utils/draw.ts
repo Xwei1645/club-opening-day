@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { randomInt } from "node:crypto";
 
 const DEFAULT_WINNER_COUNT = 100;
 
@@ -35,6 +36,117 @@ export async function ensureDrawConfig() {
   });
 }
 
+function secureShuffle<T>(array: T[]): T[] {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = randomInt(0, i + 1);
+    const temp = result[i];
+    result[i] = result[j]!;
+    result[j] = temp!;
+  }
+  return result;
+}
+
+interface DrawResult {
+  ok: boolean;
+  winnerCount: number;
+  totalParticipants: number;
+}
+
+export async function executeDraw(tx: any, cfg: any): Promise<DrawResult> {
+  const participants = await tx.participant.findMany({
+    where: { drawResult: "PENDING" },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (participants.length === 0) {
+    throw new Error("No participants to draw.");
+  }
+
+  const forcedWinners = participants.filter(
+    (p: any) => p.forceResult === "WIN"
+  );
+  const forcedLosers = participants.filter(
+    (p: any) => p.forceResult === "LOSE"
+  );
+  const normalParticipants = participants.filter(
+    (p: any) => p.forceResult === null
+  );
+
+  const forcedWinnerIds = new Set(forcedWinners.map((p: any) => p.id));
+  const forcedLoserIds = new Set(forcedLosers.map((p: any) => p.id));
+
+  const remainingWinnerSlots = Math.max(
+    0,
+    cfg.winnerCount - forcedWinners.length
+  );
+
+  const shuffled = secureShuffle(normalParticipants);
+  const normalWinners = shuffled.slice(0, remainingWinnerSlots);
+  const normalWinnerIds = new Set(normalWinners.map((p: any) => p.id));
+
+  const allWinners = [...forcedWinners, ...normalWinners];
+
+  const now = new Date();
+
+  if (forcedWinners.length > 0) {
+    await tx.participant.updateMany({
+      where: { id: { in: [...forcedWinnerIds] } },
+      data: { drawResult: "WIN" },
+    });
+  }
+
+  if (normalWinners.length > 0) {
+    await tx.participant.updateMany({
+      where: { id: { in: [...normalWinnerIds] } },
+      data: { drawResult: "WIN" },
+    });
+  }
+
+  const loserIds = normalParticipants
+    .filter((p: any) => !normalWinnerIds.has(p.id))
+    .map((p: any) => p.id);
+
+  if (forcedLosers.length > 0) {
+    loserIds.push(...forcedLoserIds);
+  }
+
+  if (loserIds.length > 0) {
+    await tx.participant.updateMany({
+      where: { id: { in: loserIds } },
+      data: { drawResult: "LOSE" },
+    });
+  }
+
+  for (const winner of allWinners) {
+    const code = generateTicketCode();
+    await tx.ticket.create({
+      data: {
+        participantId: winner.id,
+        ticketCode: code,
+        qrPayload: code,
+        status: "VALID",
+        issuedAt: now,
+        expiresAt: cfg.ticketExpireAt,
+      },
+    });
+  }
+
+  await tx.drawConfig.update({
+    where: { id: 1 },
+    data: {
+      drawStatus: "DONE",
+      resultGeneratedAt: now,
+    },
+  });
+
+  return {
+    ok: true,
+    winnerCount: allWinners.length,
+    totalParticipants: participants.length,
+  };
+}
+
 export async function runDrawIfNeeded() {
   const cfg = await ensureDrawConfig();
   const now = new Date();
@@ -52,97 +164,8 @@ export async function runDrawIfNeeded() {
       return { executed: false };
     }
 
-    const participants = await tx.participant.findMany({
-      where: { drawResult: "PENDING" },
-      orderBy: { createdAt: "asc" },
-    });
-
-    const forcedWinners = participants.filter(
-      (p: any) => p.forceResult === "WIN"
-    );
-    const forcedLosers = participants.filter(
-      (p: any) => p.forceResult === "LOSE"
-    );
-    const normalParticipants = participants.filter(
-      (p: any) => p.forceResult === null
-    );
-
-    const forcedWinnerIds = new Set(forcedWinners.map((p: any) => p.id));
-    const forcedLoserIds = new Set(forcedLosers.map((p: any) => p.id));
-
-    const remainingWinnerSlots = Math.max(
-      0,
-      current.winnerCount - forcedWinners.length
-    );
-
-    const shuffled = [...normalParticipants];
-    for (let i = shuffled.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const tmp = shuffled[i];
-      shuffled[i] = shuffled[j];
-      shuffled[j] = tmp;
-    }
-
-    const normalWinners = shuffled.slice(0, remainingWinnerSlots);
-    const normalWinnerIds = new Set(normalWinners.map((p: any) => p.id));
-
-    const allWinnerIds = new Set([...forcedWinnerIds, ...normalWinnerIds]);
-
-    if (forcedWinners.length > 0) {
-      await tx.participant.updateMany({
-        where: { id: { in: [...forcedWinnerIds] } },
-        data: { drawResult: "WIN" },
-      });
-    }
-
-    if (normalWinners.length > 0) {
-      await tx.participant.updateMany({
-        where: { id: { in: [...normalWinnerIds] } },
-        data: { drawResult: "WIN" },
-      });
-    }
-
-    const loserIds = normalParticipants
-      .filter((p: any) => !normalWinnerIds.has(p.id))
-      .map((p: any) => p.id);
-
-    if (forcedLosers.length > 0) {
-      loserIds.push(...forcedLoserIds);
-    }
-
-    if (loserIds.length > 0) {
-      await tx.participant.updateMany({
-        where: { id: { in: loserIds } },
-        data: { drawResult: "LOSE" },
-      });
-    }
-
-    const nowTime = new Date();
-    const allWinners = [...forcedWinners, ...normalWinners];
-
-    for (const winner of allWinners) {
-      const code = generateTicketCode();
-      await tx.ticket.create({
-        data: {
-          participantId: winner.id,
-          ticketCode: code,
-          qrPayload: code,
-          status: "VALID",
-          issuedAt: nowTime,
-          expiresAt: current.ticketExpireAt,
-        },
-      });
-    }
-
-    await tx.drawConfig.update({
-      where: { id: 1 },
-      data: {
-        drawStatus: "DONE",
-        resultGeneratedAt: nowTime,
-      },
-    });
-
-    return { executed: true, winnerCount: allWinners.length };
+    const result = await executeDraw(tx, current);
+    return { executed: true, ...result };
   });
 }
 
