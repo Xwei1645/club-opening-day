@@ -1,19 +1,18 @@
 import { defineEventHandler, getQuery } from "h3";
 import { prisma } from "../../utils/prisma";
-import { normalizeFingerprintHash } from "../../utils/fingerprint";
 import { ensureDrawConfig, syncExpiredTickets } from "../../utils/draw";
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
-  const raw = String(query.fingerprintHash || "").trim();
-  if (!raw) {
+  const recoverCode = String(query.recoverCode || "").trim().toUpperCase();
+  if (!recoverCode || recoverCode.length !== 6) {
     return { participated: false };
   }
 
   await syncExpiredTickets();
   const cfg = await ensureDrawConfig();
   const participant = await prisma.participant.findUnique({
-    where: { fingerprintHash: normalizeFingerprintHash(raw) },
+    where: { recoverCode },
     include: { ticket: true },
   });
 
@@ -29,6 +28,7 @@ export default defineEventHandler(async (event) => {
       publishStatus: cfg.publishStatus,
       name: participant.name,
       school: participant.school,
+      recoverCode: participant.recoverCode,
     };
   }
 
@@ -40,6 +40,7 @@ export default defineEventHandler(async (event) => {
       resultGeneratedAt: cfg.resultGeneratedAt,
       name: participant.name,
       school: participant.school,
+      recoverCode: participant.recoverCode,
     };
   }
 
@@ -49,6 +50,7 @@ export default defineEventHandler(async (event) => {
       stage: "win",
       name: participant.name,
       school: participant.school,
+      recoverCode: participant.recoverCode,
       ticket: {
         ticketCode: participant.ticket.ticketCode,
         qrPayload: participant.ticket.qrPayload,
@@ -65,5 +67,6 @@ export default defineEventHandler(async (event) => {
     stage: "lose",
     name: participant.name,
     school: participant.school,
+    recoverCode: participant.recoverCode,
   };
 });

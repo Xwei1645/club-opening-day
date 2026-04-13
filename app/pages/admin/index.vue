@@ -24,6 +24,7 @@ interface Participant {
   ip: string;
   userAgent: string;
   fingerprintHash: string;
+  recoverCode: string | null;
   ticket: {
     ticketCode: string;
     status: string;
@@ -522,6 +523,15 @@ const copyFingerprint = async (fingerprint: string) => {
   }
 };
 
+const copyRecoverCode = async (code: string) => {
+  try {
+    await navigator.clipboard.writeText(code);
+    showSuccessToast("已复制找回码");
+  } catch (e) {
+    showToast("复制失败");
+  }
+};
+
 onMounted(() => {
   const savedToken = localStorage.getItem("adminToken");
   if (savedToken) {
@@ -829,6 +839,19 @@ onMounted(() => {
                   <span class="detail-label">报名时间</span>
                   <span class="detail-value">{{ formatDateTime(p.createdAt) }}</span>
                 </div>
+                <div v-if="p.recoverCode" class="detail-row">
+                  <span class="detail-label">找回码</span>
+                  <span
+                    class="detail-value recover-code copyable"
+                    @click="copyRecoverCode(p.recoverCode)"
+                  >
+                    {{ p.recoverCode }}
+                  </span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">指纹</span>
+                  <span class="detail-value fingerprint">{{ p.fingerprintHash }}</span>
+                </div>
                 <div class="detail-row">
                   <span class="detail-label">IP地址</span>
                   <span class="detail-value">{{ p.ip }}</span>
@@ -836,15 +859,6 @@ onMounted(() => {
                 <div class="detail-row">
                   <span class="detail-label">浏览器</span>
                   <span class="detail-value ua">{{ p.userAgent }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">指纹</span>
-                  <span
-                    class="detail-value fingerprint copyable"
-                    @click="copyFingerprint(p.fingerprintHash)"
-                  >
-                    {{ p.fingerprintHash }}
-                  </span>
                 </div>
                 <div v-if="p.ticket" class="detail-row">
                   <span class="detail-label">门票码</span>
@@ -1376,6 +1390,22 @@ onMounted(() => {
 
             &:hover {
               color: #666;
+            }
+          }
+        }
+
+        &.recover-code {
+          font-family: monospace;
+          font-size: 14px;
+          font-weight: bold;
+          color: #1976d2;
+          letter-spacing: 2px;
+
+          &.copyable {
+            cursor: pointer;
+
+            &:hover {
+              color: #1565c0;
             }
           }
         }

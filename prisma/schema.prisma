@@ -54,7 +54,8 @@ model Participant {
   id              String        @id @default(cuid())
   name            String
   school          String
-  fingerprintHash String        @unique
+  fingerprintHash String
+  recoverCode     String?       @unique
   ip              String
   userAgent       String
   drawResult      DrawResult    @default(PENDING)
@@ -64,6 +65,7 @@ model Participant {
 
   @@index([drawResult])
   @@index([forceResult])
+  @@index([recoverCode])
 }
 
 model Ticket {

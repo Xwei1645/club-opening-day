@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
     where.OR = [
       { name: { contains: search, mode: "insensitive" as const } },
       { school: { contains: search, mode: "insensitive" as const } },
+      { recoverCode: { equals: search.toUpperCase() } },
     ];
   }
 
@@ -39,6 +40,7 @@ export default defineEventHandler(async (event) => {
       ip: true,
       userAgent: true,
       fingerprintHash: true,
+      recoverCode: true,
       ticket: {
         select: {
           ticketCode: true,

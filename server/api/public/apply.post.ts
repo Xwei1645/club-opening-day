@@ -6,6 +6,7 @@ import { normalizeFingerprintHash } from "../../utils/fingerprint";
 import { ensureDrawConfig } from "../../utils/draw";
 import { requestMeta } from "../../utils/request-meta";
 import { checkIpLocation } from "../../utils/ip-check";
+import { generateUniqueRecoverCode } from "../../utils/recover-code";
 
 const chineseRegex = /^[\u4e00-\u9fa5]+$/;
 
@@ -58,23 +59,29 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    const recoverCode = await generateUniqueRecoverCode();
     const participant = await prisma.participant.create({
       data: {
         name: body.name,
         school: body.school,
         fingerprintHash,
+        recoverCode,
         ip,
         userAgent,
       },
     });
 
-    return { ok: true, duplicate: false, id: participant.id };
+    return { ok: true, duplicate: false, id: participant.id, recoverCode };
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      return { ok: true, duplicate: true };
+      const existing = await prisma.participant.findFirst({
+        where: { fingerprintHash },
+        select: { recoverCode: true },
+      });
+      return { ok: true, duplicate: true, recoverCode: existing?.recoverCode };
     }
 
     throw error;

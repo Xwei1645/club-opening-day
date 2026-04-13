@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
 import { showToast, showSuccessToast } from "vant";
-import { buildFingerprintHash, updateFingerprint } from "../utils/fingerprint";
+import { buildFingerprintHash, updateFingerprint, getLocalRecoverCode, setLocalRecoverCode } from "../utils/fingerprint";
 import QRCode from "qrcode";
 
 interface DrawConfig {
@@ -30,7 +30,15 @@ interface ResultData {
   resultGeneratedAt?: string;
   name?: string;
   school?: string;
+  recoverCode?: string;
   ticket?: TicketInfo;
+}
+
+interface ParticipantInfo {
+  id: string;
+  name: string;
+  school: string;
+  createdAt: string;
 }
 
 const config = ref<DrawConfig | null>(null);
@@ -50,15 +58,43 @@ const qrDataUrl = ref("");
 const showWechatQrPopup = ref(false);
 const showWechatTip = ref(true);
 const wechatQrDataUrl = ref("");
+
+const showRecoverCodePopup = ref(false);
+const newRecoverCode = ref("");
+const showViewRecoverCodePopup = ref(false);
+const showIdentityConfirmPopup = ref(false);
+const showNameVerifyPopup = ref(false);
+const pendingParticipants = ref<ParticipantInfo[]>([]);
+const selectedParticipant = ref<ParticipantInfo | null>(null);
+const verifyName = ref("");
+const verifying = ref(false);
+const identityRejected = ref(false);
+
 const showRebindPopup = ref(false);
-const rebindFingerprint = ref("");
+const rebindRecoverCode = ref("");
 const rebinding = ref(false);
 
-onMounted(() => {
+onMounted(async () => {
   const tipClosed = localStorage.getItem("wechatTipClosed");
   if (tipClosed === "true") {
     showWechatTip.value = false;
   }
+
+  const rejected = localStorage.getItem("identityRejected");
+  if (rejected === "true") {
+    identityRejected.value = true;
+  }
+
+  await fetchConfig();
+
+  const localRecoverCode = getLocalRecoverCode();
+  if (localRecoverCode) {
+    await fetchResult();
+  } else {
+    await checkFingerprint();
+  }
+
+  loading.value = false;
 });
 
 const closeWechatTip = () => {
@@ -66,33 +102,118 @@ const closeWechatTip = () => {
   localStorage.setItem("wechatTipClosed", "true");
 };
 
+const maskName = (name: string): string => {
+  if (name.length === 2) {
+    return name[0] + "*";
+  } else if (name.length === 3) {
+    return name[0] + "*" + name[2];
+  } else if (name.length === 4) {
+    return name[0] + "*" + name[2] + name[3];
+  }
+  return name;
+};
+
+const formatDate = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("zh-CN", {
+    month: "long",
+    day: "numeric",
+  });
+};
+
 const handleRebind = async () => {
-  if (!rebindFingerprint.value.trim()) {
-    showToast("请输入指纹");
+  if (!rebindRecoverCode.value.trim()) {
+    showToast("请输入找回码");
+    return;
+  }
+
+  if (rebindRecoverCode.value.trim().length !== 6) {
+    showToast("找回码为6位");
     return;
   }
 
   rebinding.value = true;
   try {
-    const newFp = await buildFingerprintHash();
-    await $fetch("/api/public/rebind", {
+    const res = await $fetch<{ ok: boolean; participant: { recoverCode: string } }>("/api/public/recover", {
       method: "POST",
       body: {
-        oldFingerprint: rebindFingerprint.value.trim(),
-        newFingerprint: newFp,
+        recoverCode: rebindRecoverCode.value.trim().toUpperCase(),
       },
     });
 
-    updateFingerprint(newFp);
-    fingerprintHash.value = newFp;
-    showRebindPopup.value = false;
-    rebindFingerprint.value = "";
-    showSuccessToast("找回成功");
-    await fetchResult();
+    if (res.ok && res.participant.recoverCode) {
+      setLocalRecoverCode(res.participant.recoverCode);
+      showRebindPopup.value = false;
+      rebindRecoverCode.value = "";
+      showSuccessToast("找回成功");
+      await fetchResult();
+    }
   } catch (e: any) {
     showToast(e.data?.statusMessage || "找回失败");
   } finally {
     rebinding.value = false;
+  }
+};
+
+const handleIdentityConfirm = (participant: ParticipantInfo) => {
+  selectedParticipant.value = participant;
+  showIdentityConfirmPopup.value = false;
+  showNameVerifyPopup.value = true;
+};
+
+const handleRejectIdentity = () => {
+  showIdentityConfirmPopup.value = false;
+  identityRejected.value = true;
+  localStorage.setItem("identityRejected", "true");
+};
+
+const handleNameVerify = async () => {
+  if (!verifyName.value.trim()) {
+    showToast("请输入姓名");
+    return;
+  }
+
+  if (!selectedParticipant.value) {
+    return;
+  }
+
+  verifying.value = true;
+  try {
+    const res = await $fetch<{ ok: boolean; participant: { recoverCode: string } }>("/api/public/verify-identity", {
+      method: "POST",
+      body: {
+        id: selectedParticipant.value.id,
+        name: verifyName.value.trim(),
+      },
+    });
+
+    if (res.ok && res.participant.recoverCode) {
+      setLocalRecoverCode(res.participant.recoverCode);
+      showNameVerifyPopup.value = false;
+      verifyName.value = "";
+      selectedParticipant.value = null;
+      pendingParticipants.value = [];
+      showSuccessToast("验证成功");
+      await fetchResult();
+    }
+  } catch (e: any) {
+    showToast(e.data?.statusMessage || "验证失败");
+  } finally {
+    verifying.value = false;
+  }
+};
+
+const copyRecoverCode = () => {
+  if (resultData.value?.recoverCode) {
+    navigator.clipboard.writeText(resultData.value.recoverCode);
+    showSuccessToast("已复制");
+  }
+};
+
+const copyNewRecoverCode = () => {
+  if (newRecoverCode.value) {
+    navigator.clipboard.writeText(newRecoverCode.value);
+    showSuccessToast("已复制");
   }
 };
 
@@ -168,11 +289,13 @@ const fetchConfig = async () => {
 
 const fetchResult = async () => {
   try {
-    const fp = fingerprintHash.value || (await buildFingerprintHash());
-    fingerprintHash.value = fp;
+    const localRecoverCode = getLocalRecoverCode();
+    if (!localRecoverCode) {
+      return;
+    }
 
     const res = await $fetch<ResultData>(
-      `/api/public/result?fingerprintHash=${fp}`
+      `/api/public/result?recoverCode=${localRecoverCode}`
     );
     resultData.value = res;
 
@@ -185,6 +308,28 @@ const fetchResult = async () => {
     }
   } catch (e) {
     console.error("获取结果失败", e);
+  }
+};
+
+const checkFingerprint = async () => {
+  if (identityRejected.value) {
+    return;
+  }
+
+  try {
+    const fp = await buildFingerprintHash();
+    fingerprintHash.value = fp;
+
+    const res = await $fetch<{ found: boolean; participants?: ParticipantInfo[] }>(
+      `/api/public/check-fingerprint?fingerprintHash=${fp}`
+    );
+
+    if (res.found && res.participants && res.participants.length > 0) {
+      pendingParticipants.value = res.participants;
+      showIdentityConfirmPopup.value = true;
+    }
+  } catch (e) {
+    console.error("检查指纹失败", e);
   }
 };
 
@@ -249,7 +394,7 @@ const handleSubmit = async () => {
     const fp = fingerprintHash.value || (await buildFingerprintHash());
     fingerprintHash.value = fp;
 
-    const result = await $fetch<{ ok: boolean; duplicate: boolean; id?: string }>("/api/public/apply", {
+    const result = await $fetch<{ ok: boolean; duplicate: boolean; id?: string; recoverCode?: string }>("/api/public/apply", {
       method: "POST",
       body: {
         name: name.value.trim(),
@@ -258,9 +403,17 @@ const handleSubmit = async () => {
       },
     });
 
-    if (result.ok) {
+    if (result.ok && result.recoverCode) {
+      setLocalRecoverCode(result.recoverCode);
       showForm.value = false;
-      showSuccessToast("提交成功");
+      
+      if (!result.duplicate) {
+        newRecoverCode.value = result.recoverCode;
+        showRecoverCodePopup.value = true;
+      } else {
+        showSuccessToast("提交成功");
+      }
+      
       await fetchResult();
     }
   } catch (e: any) {
@@ -270,10 +423,7 @@ const handleSubmit = async () => {
   }
 };
 
-onMounted(async () => {
-  await Promise.all([fetchConfig(), fetchResult()]);
-  loading.value = false;
-});
+
 </script>
 
 <template>
@@ -403,6 +553,9 @@ onMounted(async () => {
         <div v-if="!resultData?.participated" class="card-footer">
           <span class="recover-link" @click="showRebindPopup = true">找回抽奖记录</span>
         </div>
+        <div v-else-if="resultData?.recoverCode" class="card-footer">
+          <span class="recover-link" @click="showViewRecoverCodePopup = true">找回码</span>
+        </div>
       </div>
     </div>
 
@@ -413,18 +566,107 @@ onMounted(async () => {
     >
       <div class="rebind-popup">
         <h4 class="popup-title">找回抽奖记录</h4>
-        <p class="popup-desc">请输入之前保存的指纹</p>
+        <p class="popup-desc">请输入您的6位找回码</p>
         <van-field
-          v-model="rebindFingerprint"
-          type="textarea"
-          rows="2"
-          autosize
-          placeholder="粘贴指纹"
+          v-model="rebindRecoverCode"
+          maxlength="6"
+          placeholder="请输入6位找回码"
           class="rebind-input"
         />
         <div class="rebind-actions">
           <van-button block round @click="showRebindPopup = false">取消</van-button>
           <van-button type="primary" block round :loading="rebinding" @click="handleRebind">确认</van-button>
+        </div>
+      </div>
+    </van-popup>
+
+    <van-popup
+      v-model:show="showRecoverCodePopup"
+      round
+      :style="{ padding: '24px', width: '80%', maxWidth: '320px' }"
+    >
+      <div class="recover-code-popup">
+        <h4 class="popup-title">您的找回码</h4>
+        <div class="recover-code-display">{{ newRecoverCode }}</div>
+        <p class="popup-hint">请保存此找回码，抽奖记录丢失时您可通过找回码恢复</p>
+        <div class="recover-code-actions">
+          <van-button block round @click="copyNewRecoverCode">复制找回码</van-button>
+          <van-button type="primary" block round @click="showRecoverCodePopup = false">关闭</van-button>
+        </div>
+      </div>
+    </van-popup>
+
+    <van-popup
+      v-model:show="showViewRecoverCodePopup"
+      round
+      :style="{ padding: '24px', width: '80%', maxWidth: '320px' }"
+    >
+      <div class="recover-code-popup">
+        <h4 class="popup-title">您的找回码</h4>
+        <div class="recover-code-display">{{ resultData?.recoverCode }}</div>
+        <div class="recover-code-actions">
+          <van-button block round @click="copyRecoverCode">复制找回码</van-button>
+          <van-button type="primary" block round @click="showViewRecoverCodePopup = false">关闭</van-button>
+        </div>
+      </div>
+    </van-popup>
+
+    <van-popup
+      v-model:show="showIdentityConfirmPopup"
+      round
+      :style="{ padding: '24px', width: '80%', maxWidth: '360px' }"
+    >
+      <div class="identity-confirm-popup">
+        <h4 class="popup-title">身份确认</h4>
+        
+        <template v-if="pendingParticipants.length === 1 && pendingParticipants[0]">
+          <p class="popup-desc">这是您的信息吗？</p>
+          <div class="participant-card">
+            <div class="participant-name">{{ maskName(pendingParticipants[0].name) }}</div>
+            <div class="participant-school">{{ pendingParticipants[0].school }}</div>
+            <div class="participant-date">{{ formatDate(pendingParticipants[0].createdAt) }}报名</div>
+          </div>
+          <div class="identity-actions">
+            <van-button block round @click="handleRejectIdentity">这不是我</van-button>
+            <van-button type="primary" block round @click="handleIdentityConfirm(pendingParticipants[0]!)">是的，是我</van-button>
+          </div>
+        </template>
+        
+        <template v-else-if="pendingParticipants.length > 1">
+          <p class="popup-desc">找到多条匹配记录，请选择：</p>
+          <div class="participant-list">
+            <div 
+              v-for="(p, index) in pendingParticipants" 
+              :key="p.id"
+              class="participant-item"
+              @click="handleIdentityConfirm(p)"
+            >
+              <div class="participant-name">{{ maskName(p.name) }}</div>
+              <div class="participant-info">{{ p.school }} | {{ formatDate(p.createdAt) }}报名</div>
+            </div>
+          </div>
+          <van-button block round @click="handleRejectIdentity">都不是我</van-button>
+        </template>
+      </div>
+    </van-popup>
+
+    <van-popup
+      v-model:show="showNameVerifyPopup"
+      round
+      :style="{ padding: '24px', width: '80%', maxWidth: '320px' }"
+    >
+      <div class="name-verify-popup">
+        <h4 class="popup-title">验证身份</h4>
+        <p class="popup-desc">请输入您的完整姓名以验证身份</p>
+        <van-field
+          v-model="verifyName"
+          label="姓名"
+          placeholder="请输入完整姓名"
+          class="verify-input"
+        />
+        <div class="verify-actions">
+          <van-button block round @click="showNameVerifyPopup = false; verifyName = ''">取消</van-button>
+          <van-button type="primary" block round :loading="verifying" @click="handleNameVerify">确认</van-button>
         </div>
       </div>
     </van-popup>
@@ -1026,6 +1268,150 @@ onMounted(async () => {
   }
 
   .rebind-actions {
+    display: flex;
+    gap: 12px;
+
+    .van-button {
+      flex: 1;
+    }
+  }
+}
+
+.recover-code-popup {
+  text-align: center;
+
+  .popup-title {
+    margin: 0 0 16px;
+    font-size: 18px;
+    color: #333;
+  }
+
+  .recover-code-display {
+    font-size: 32px;
+    font-weight: bold;
+    color: #1976d2;
+    letter-spacing: 4px;
+    margin-bottom: 16px;
+    font-family: monospace;
+  }
+
+  .popup-hint {
+    margin: 0 0 16px;
+    font-size: 12px;
+    color: #999;
+  }
+
+  .recover-code-actions {
+    display: flex;
+    gap: 12px;
+
+    .van-button {
+      flex: 1;
+    }
+  }
+}
+
+.identity-confirm-popup {
+  text-align: center;
+
+  .popup-title {
+    margin: 0 0 12px;
+    font-size: 18px;
+    color: #333;
+  }
+
+  .popup-desc {
+    margin: 0 0 16px;
+    font-size: 14px;
+    color: #666;
+  }
+
+  .participant-card {
+    background: #f5f7fa;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+
+    .participant-name {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .participant-school {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    .participant-date {
+      font-size: 12px;
+      color: #999;
+    }
+  }
+
+  .participant-list {
+    margin-bottom: 16px;
+    max-height: 240px;
+    overflow-y: auto;
+
+    .participant-item {
+      background: #f5f7fa;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      text-align: left;
+
+      &:hover {
+        background: #e8f4fc;
+      }
+
+      .participant-name {
+        font-size: 16px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 4px;
+      }
+
+      .participant-info {
+        font-size: 12px;
+        color: #666;
+      }
+    }
+  }
+
+  .identity-actions {
+    display: flex;
+    gap: 12px;
+
+    .van-button {
+      flex: 1;
+    }
+  }
+}
+
+.name-verify-popup {
+  text-align: center;
+
+  .popup-title {
+    margin: 0 0 8px;
+    font-size: 18px;
+    color: #333;
+  }
+
+  .popup-desc {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: #666;
+  }
+
+  .verify-input {
+    margin-bottom: 16px;
+  }
+
+  .verify-actions {
     display: flex;
     gap: 12px;
 

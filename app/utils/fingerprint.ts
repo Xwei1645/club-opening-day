@@ -2,12 +2,14 @@ import FingerprintJS from "@fingerprintjs/fingerprintjs";
 
 const STORAGE_KEY = "participant_fingerprint";
 const COOKIE_KEY = "participant_fingerprint";
+const RECOVER_CODE_STORAGE_KEY = "participant_recover_code";
+const RECOVER_CODE_COOKIE_KEY = "participant_recover_code";
 
 let fpPromise: Promise<any> | null = null;
 
 function getCookie(name: string): string | null {
   const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-  return match ? decodeURIComponent(match[2]) : null;
+  return match && match[2] ? decodeURIComponent(match[2]) : null;
 }
 
 function setCookie(name: string, value: string, days: number = 365): void {
@@ -45,14 +47,30 @@ export async function buildFingerprintHash(): Promise<string> {
     return cookieFp;
   }
 
-  if (localFp !== cookieFp) {
+  if (localFp && cookieFp && localFp !== cookieFp) {
     setCookie(COOKIE_KEY, localFp);
     return localFp;
   }
 
-  return localFp!;
+  return localFp || cookieFp || "";
 }
 
 export function updateFingerprint(newFp: string): void {
   syncFingerprint(newFp);
+}
+
+export function getLocalRecoverCode(): string | null {
+  const localCode = localStorage.getItem(RECOVER_CODE_STORAGE_KEY);
+  const cookieCode = getCookie(RECOVER_CODE_COOKIE_KEY);
+  return localCode || cookieCode || null;
+}
+
+export function setLocalRecoverCode(code: string): void {
+  localStorage.setItem(RECOVER_CODE_STORAGE_KEY, code);
+  setCookie(RECOVER_CODE_COOKIE_KEY, code);
+}
+
+export function clearLocalRecoverCode(): void {
+  localStorage.removeItem(RECOVER_CODE_STORAGE_KEY);
+  document.cookie = `${RECOVER_CODE_COOKIE_KEY}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 }
