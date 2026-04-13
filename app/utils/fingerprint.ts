@@ -62,7 +62,19 @@ export function updateFingerprint(newFp: string): void {
 export function getLocalRecoverCode(): string | null {
   const localCode = localStorage.getItem(RECOVER_CODE_STORAGE_KEY);
   const cookieCode = getCookie(RECOVER_CODE_COOKIE_KEY);
-  return localCode || cookieCode || null;
+  
+  const code = localCode || cookieCode || null;
+  
+  if (code) {
+    if (!localCode) {
+      localStorage.setItem(RECOVER_CODE_STORAGE_KEY, code);
+    }
+    if (!cookieCode) {
+      setCookie(RECOVER_CODE_COOKIE_KEY, code);
+    }
+  }
+  
+  return code;
 }
 
 export function setLocalRecoverCode(code: string): void {
