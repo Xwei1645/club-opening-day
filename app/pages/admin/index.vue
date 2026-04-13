@@ -857,8 +857,8 @@ onMounted(() => {
                   <span class="detail-value">{{ p.ip }}</span>
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label">浏览器</span>
-                  <span class="detail-value ua">{{ p.userAgent }}</span>
+                  <span class="detail-label">UA</span>
+                  <span class="detail-value">{{ p.userAgent }}</span>
                 </div>
                 <div v-if="p.ticket" class="detail-row">
                   <span class="detail-label">门票码</span>
@@ -1376,37 +1376,16 @@ onMounted(() => {
         color: #333;
         word-break: break-all;
 
-        &.ua {
-          font-size: 11px;
-          color: #666;
-        }
-
-        &.fingerprint {
+        &.fingerprint,
+        &.recover-code {
           font-family: monospace;
-          font-size: 10px;
-
-          &.copyable {
-            cursor: pointer;
-
-            &:hover {
-              color: #666;
-            }
-          }
         }
 
         &.recover-code {
-          font-family: monospace;
-          font-size: 14px;
-          font-weight: bold;
-          color: #1976d2;
-          letter-spacing: 2px;
+          cursor: pointer;
 
-          &.copyable {
-            cursor: pointer;
-
-            &:hover {
-              color: #1565c0;
-            }
+          &:hover {
+            color: #666;
           }
         }
       }
