@@ -60,8 +60,6 @@ const showWechatTip = ref(true);
 const wechatQrDataUrl = ref("");
 
 const showRecoverCodePopup = ref(false);
-const newRecoverCode = ref("");
-const showViewRecoverCodePopup = ref(false);
 const showIdentityConfirmPopup = ref(false);
 const showNameVerifyPopup = ref(false);
 const pendingParticipants = ref<ParticipantInfo[]>([]);
@@ -206,13 +204,6 @@ const handleNameVerify = async () => {
 const copyRecoverCode = () => {
   if (resultData.value?.recoverCode) {
     navigator.clipboard.writeText(resultData.value.recoverCode);
-    showSuccessToast("已复制");
-  }
-};
-
-const copyNewRecoverCode = () => {
-  if (newRecoverCode.value) {
-    navigator.clipboard.writeText(newRecoverCode.value);
     showSuccessToast("已复制");
   }
 };
@@ -408,13 +399,15 @@ const handleSubmit = async () => {
       showForm.value = false;
       
       if (!result.duplicate) {
-        newRecoverCode.value = result.recoverCode;
+        await fetchResult();
         showRecoverCodePopup.value = true;
       } else {
         showSuccessToast("提交成功");
       }
       
-      await fetchResult();
+      if (result.duplicate) {
+        await fetchResult();
+      }
     }
   } catch (e: any) {
     showToast(e.data?.statusMessage || "提交失败");
@@ -554,7 +547,7 @@ const handleSubmit = async () => {
           <span class="recover-link" @click="showRebindPopup = true">找回抽奖记录</span>
         </div>
         <div v-else-if="resultData?.recoverCode" class="card-footer">
-          <span class="recover-link" @click="showViewRecoverCodePopup = true">找回码</span>
+          <span class="recover-link" @click="showRecoverCodePopup = true">找回码</span>
         </div>
       </div>
     </div>
@@ -587,26 +580,11 @@ const handleSubmit = async () => {
     >
       <div class="recover-code-popup">
         <h4 class="popup-title">您的找回码</h4>
-        <div class="recover-code-display">{{ newRecoverCode }}</div>
+        <div class="recover-code-display">{{ resultData?.recoverCode }}</div>
         <p class="popup-hint">请保存此找回码，抽奖记录丢失时您可通过找回码恢复</p>
         <div class="recover-code-actions">
-          <van-button block round @click="copyNewRecoverCode">复制找回码</van-button>
-          <van-button type="primary" block round @click="showRecoverCodePopup = false">关闭</van-button>
-        </div>
-      </div>
-    </van-popup>
-
-    <van-popup
-      v-model:show="showViewRecoverCodePopup"
-      round
-      :style="{ padding: '24px', width: '80%', maxWidth: '320px' }"
-    >
-      <div class="recover-code-popup">
-        <h4 class="popup-title">您的找回码</h4>
-        <div class="recover-code-display">{{ resultData?.recoverCode }}</div>
-        <div class="recover-code-actions">
           <van-button block round @click="copyRecoverCode">复制找回码</van-button>
-          <van-button type="primary" block round @click="showViewRecoverCodePopup = false">关闭</van-button>
+          <van-button type="primary" block round @click="showRecoverCodePopup = false">关闭</van-button>
         </div>
       </div>
     </van-popup>
