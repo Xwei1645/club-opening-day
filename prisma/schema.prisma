@@ -55,7 +55,7 @@ model Participant {
   name            String
   school          String
   fingerprintHash String
-  recoverCode     String?       @unique
+  recoverCode     String        @unique
   ip              String
   userAgent       String
   drawResult      DrawResult    @default(PENDING)
