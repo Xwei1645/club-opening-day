@@ -592,7 +592,7 @@ const handleSubmit = async () => {
     >
       <div class="rebind-popup">
         <h4 class="popup-title">找回抽奖记录</h4>
-        <p class="popup-desc">请输入您的6位找回码</p>
+        <p class="popup-desc">如您不知道这是什么或遗忘找回码，请联系工作人员</p>
         <van-field
           v-model="rebindRecoverCode"
           maxlength="6"
