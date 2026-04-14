@@ -64,13 +64,13 @@ export async function executeDraw(tx: any, cfg: any): Promise<DrawResult> {
   }
 
   const forcedWinners = participants.filter(
-    (p: any) => p.forceResult === "WIN"
+    (p: any) => p.forceResult === "WIN",
   );
   const forcedLosers = participants.filter(
-    (p: any) => p.forceResult === "LOSE"
+    (p: any) => p.forceResult === "LOSE",
   );
   const normalParticipants = participants.filter(
-    (p: any) => p.forceResult === null
+    (p: any) => p.forceResult === null,
   );
 
   const forcedWinnerIds = new Set(forcedWinners.map((p: any) => p.id));
@@ -78,7 +78,7 @@ export async function executeDraw(tx: any, cfg: any): Promise<DrawResult> {
 
   const remainingWinnerSlots = Math.max(
     0,
-    cfg.winnerCount - forcedWinners.length
+    cfg.winnerCount - forcedWinners.length,
   );
 
   const shuffled = secureShuffle(normalParticipants);

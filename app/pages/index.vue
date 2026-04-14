@@ -2,10 +2,15 @@
 import { ref, onMounted, computed } from "vue";
 
 useHead({
-  title: "活动抽奖"
+  title: "活动抽奖",
 });
 import { showToast, showSuccessToast } from "vant";
-import { buildFingerprintHash, updateFingerprint, getLocalRecoverCode, setLocalRecoverCode } from "../utils/fingerprint";
+import {
+  buildFingerprintHash,
+  updateFingerprint,
+  getLocalRecoverCode,
+  setLocalRecoverCode,
+} from "../utils/fingerprint";
 import QRCode from "qrcode";
 
 interface DrawConfig {
@@ -136,7 +141,10 @@ const handleRebind = async () => {
 
   rebinding.value = true;
   try {
-    const res = await $fetch<{ ok: boolean; participant: { recoverCode: string } }>("/api/public/recover", {
+    const res = await $fetch<{
+      ok: boolean;
+      participant: { recoverCode: string };
+    }>("/api/public/recover", {
       method: "POST",
       body: {
         recoverCode: rebindRecoverCode.value.trim().toUpperCase(),
@@ -181,7 +189,10 @@ const handleNameVerify = async () => {
 
   verifying.value = true;
   try {
-    const res = await $fetch<{ ok: boolean; participant: { recoverCode: string } }>("/api/public/verify-identity", {
+    const res = await $fetch<{
+      ok: boolean;
+      participant: { recoverCode: string };
+    }>("/api/public/verify-identity", {
       method: "POST",
       body: {
         id: selectedParticipant.value.id,
@@ -290,7 +301,7 @@ const fetchResult = async () => {
     }
 
     const res = await $fetch<ResultData>(
-      `/api/public/result?recoverCode=${localRecoverCode}`
+      `/api/public/result?recoverCode=${localRecoverCode}`,
     );
     resultData.value = res;
 
@@ -315,9 +326,10 @@ const checkFingerprint = async () => {
     const fp = await buildFingerprintHash();
     fingerprintHash.value = fp;
 
-    const res = await $fetch<{ found: boolean; participants?: ParticipantInfo[] }>(
-      `/api/public/check-fingerprint?fingerprintHash=${fp}`
-    );
+    const res = await $fetch<{
+      found: boolean;
+      participants?: ParticipantInfo[];
+    }>(`/api/public/check-fingerprint?fingerprintHash=${fp}`);
 
     if (res.found && res.participants && res.participants.length > 0) {
       pendingParticipants.value = res.participants;
@@ -342,7 +354,8 @@ const handleParticipate = () => {
 
 const handleScroll = (e: Event) => {
   const target = e.target as HTMLElement;
-  const isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 50;
+  const isAtBottom =
+    target.scrollHeight - target.scrollTop <= target.clientHeight + 50;
   if (isAtBottom) {
     scrolledToBottom.value = true;
   }
@@ -389,7 +402,12 @@ const handleSubmit = async () => {
     const fp = fingerprintHash.value || (await buildFingerprintHash());
     fingerprintHash.value = fp;
 
-    const result = await $fetch<{ ok: boolean; duplicate: boolean; id?: string; recoverCode?: string }>("/api/public/apply", {
+    const result = await $fetch<{
+      ok: boolean;
+      duplicate: boolean;
+      id?: string;
+      recoverCode?: string;
+    }>("/api/public/apply", {
       method: "POST",
       body: {
         name: name.value.trim(),
@@ -401,14 +419,14 @@ const handleSubmit = async () => {
     if (result.ok && result.recoverCode) {
       setLocalRecoverCode(result.recoverCode);
       showForm.value = false;
-      
+
       if (!result.duplicate) {
         await fetchResult();
         showRecoverCodePopup.value = true;
       } else {
         showSuccessToast("提交成功");
       }
-      
+
       if (result.duplicate) {
         await fetchResult();
       }
@@ -419,8 +437,6 @@ const handleSubmit = async () => {
     submitting.value = false;
   }
 };
-
-
 </script>
 
 <template>
@@ -494,7 +510,9 @@ const handleSubmit = async () => {
               </div>
             </template>
 
-            <template v-else-if="resultData.stage === 'win' && resultData.ticket">
+            <template
+              v-else-if="resultData.stage === 'win' && resultData.ticket"
+            >
               <div class="ticket-section">
                 <div v-if="isTicketUsed" class="ticket-status used">
                   <van-icon name="clear" />
@@ -520,7 +538,10 @@ const handleSubmit = async () => {
                   </div>
                 </div>
 
-                <div class="qr-code" :class="{ disabled: isTicketUsed || isTicketExpired }">
+                <div
+                  class="qr-code"
+                  :class="{ disabled: isTicketUsed || isTicketExpired }"
+                >
                   <img :src="qrDataUrl" alt="门票二维码" />
                 </div>
 
@@ -537,7 +558,11 @@ const handleSubmit = async () => {
                 <div v-if="config?.wechatQrCodeUrl" class="wechat-section">
                   <div v-if="showWechatTip" class="wechat-tip">
                     <span>请加入观众微信群获取活动最新动态</span>
-                    <van-icon name="cross" class="close-icon" @click="closeWechatTip" />
+                    <van-icon
+                      name="cross"
+                      class="close-icon"
+                      @click="closeWechatTip"
+                    />
                   </div>
                   <div class="wechat-link" @click="showWechatQrPopup = true">
                     观众微信群二维码
@@ -548,10 +573,14 @@ const handleSubmit = async () => {
           </template>
         </div>
         <div v-if="!resultData?.participated" class="card-footer">
-          <span class="recover-link" @click="showRebindPopup = true">找回抽奖记录</span>
+          <span class="recover-link" @click="showRebindPopup = true"
+            >找回抽奖记录</span
+          >
         </div>
         <div v-else-if="resultData?.recoverCode" class="card-footer">
-          <span class="recover-link" @click="showRecoverCodePopup = true">找回码</span>
+          <span class="recover-link" @click="showRecoverCodePopup = true"
+            >找回码</span
+          >
         </div>
       </div>
     </div>
@@ -571,8 +600,17 @@ const handleSubmit = async () => {
           class="rebind-input"
         />
         <div class="rebind-actions">
-          <van-button block round @click="showRebindPopup = false">取消</van-button>
-          <van-button type="primary" block round :loading="rebinding" @click="handleRebind">确认</van-button>
+          <van-button block round @click="showRebindPopup = false"
+            >取消</van-button
+          >
+          <van-button
+            type="primary"
+            block
+            round
+            :loading="rebinding"
+            @click="handleRebind"
+            >确认</van-button
+          >
         </div>
       </div>
     </van-popup>
@@ -585,10 +623,20 @@ const handleSubmit = async () => {
       <div class="recover-code-popup">
         <h4 class="popup-title">您的找回码</h4>
         <div class="recover-code-display">{{ resultData?.recoverCode }}</div>
-        <p class="popup-hint">请保存此找回码，抽奖记录丢失时您可通过找回码恢复</p>
+        <p class="popup-hint">
+          请保存此找回码，抽奖记录丢失时您可通过找回码恢复
+        </p>
         <div class="recover-code-actions">
-          <van-button block round @click="copyRecoverCode">复制找回码</van-button>
-          <van-button type="primary" block round @click="showRecoverCodePopup = false">关闭</van-button>
+          <van-button block round @click="copyRecoverCode"
+            >复制找回码</van-button
+          >
+          <van-button
+            type="primary"
+            block
+            round
+            @click="showRecoverCodePopup = false"
+            >关闭</van-button
+          >
         </div>
       </div>
     </van-popup>
@@ -600,34 +648,54 @@ const handleSubmit = async () => {
     >
       <div class="identity-confirm-popup">
         <h4 class="popup-title">身份确认</h4>
-        
-        <template v-if="pendingParticipants.length === 1 && pendingParticipants[0]">
+
+        <template
+          v-if="pendingParticipants.length === 1 && pendingParticipants[0]"
+        >
           <p class="popup-desc">这是您的信息吗？</p>
           <div class="participant-card">
-            <div class="participant-name">{{ maskName(pendingParticipants[0].name) }}</div>
-            <div class="participant-school">{{ pendingParticipants[0].school }}</div>
-            <div class="participant-date">{{ formatDate(pendingParticipants[0].createdAt) }}报名</div>
+            <div class="participant-name">
+              {{ maskName(pendingParticipants[0].name) }}
+            </div>
+            <div class="participant-school">
+              {{ pendingParticipants[0].school }}
+            </div>
+            <div class="participant-date">
+              {{ formatDate(pendingParticipants[0].createdAt) }}报名
+            </div>
           </div>
           <div class="identity-actions">
-            <van-button block round @click="handleRejectIdentity">这不是我</van-button>
-            <van-button type="primary" block round @click="handleIdentityConfirm(pendingParticipants[0]!)">是的，是我</van-button>
+            <van-button block round @click="handleRejectIdentity"
+              >这不是我</van-button
+            >
+            <van-button
+              type="primary"
+              block
+              round
+              @click="handleIdentityConfirm(pendingParticipants[0]!)"
+              >是的，是我</van-button
+            >
           </div>
         </template>
-        
+
         <template v-else-if="pendingParticipants.length > 1">
           <p class="popup-desc">找到多条匹配记录，请选择：</p>
           <div class="participant-list">
-            <div 
-              v-for="(p, index) in pendingParticipants" 
+            <div
+              v-for="(p, index) in pendingParticipants"
               :key="p.id"
               class="participant-item"
               @click="handleIdentityConfirm(p)"
             >
               <div class="participant-name">{{ maskName(p.name) }}</div>
-              <div class="participant-info">{{ p.school }} | {{ formatDate(p.createdAt) }}报名</div>
+              <div class="participant-info">
+                {{ p.school }} | {{ formatDate(p.createdAt) }}报名
+              </div>
             </div>
           </div>
-          <van-button block round @click="handleRejectIdentity">都不是我</van-button>
+          <van-button block round @click="handleRejectIdentity"
+            >都不是我</van-button
+          >
         </template>
       </div>
     </van-popup>
@@ -647,8 +715,23 @@ const handleSubmit = async () => {
           class="verify-input"
         />
         <div class="verify-actions">
-          <van-button block round @click="showNameVerifyPopup = false; verifyName = ''">取消</van-button>
-          <van-button type="primary" block round :loading="verifying" @click="handleNameVerify">确认</van-button>
+          <van-button
+            block
+            round
+            @click="
+              showNameVerifyPopup = false;
+              verifyName = '';
+            "
+            >取消</van-button
+          >
+          <van-button
+            type="primary"
+            block
+            round
+            :loading="verifying"
+            @click="handleNameVerify"
+            >确认</van-button
+          >
         </div>
       </div>
     </van-popup>
@@ -673,65 +756,147 @@ const handleSubmit = async () => {
 
             <div class="article">
               <h6 class="article-title">一、协议主体与适用范围</h6>
-              <p>1. 本次活动由浙江省温州中学社团联合办（以下简称"主办方"）主办，本协议系主办方与活动参与用户（以下简称"用户"），就浙江省温州中学2026年社团开放日门票抽奖活动相关事宜达成的有效约定。</p>
-              <p>2. 本协议适用于所有参与本次抽奖活动的用户。用户进入抽奖页面、完成抽奖操作行为，即视为已充分阅读、明晰并完全同意本协议全部条款，自愿接受协议约束。</p>
+              <p>
+                1.
+                本次活动由浙江省温州中学社团联合办（以下简称"主办方"）主办，本协议系主办方与活动参与用户（以下简称"用户"），就浙江省温州中学2026年社团开放日门票抽奖活动相关事宜达成的有效约定。
+              </p>
+              <p>
+                2.
+                本协议适用于所有参与本次抽奖活动的用户。用户进入抽奖页面、完成抽奖操作行为，即视为已充分阅读、明晰并完全同意本协议全部条款，自愿接受协议约束。
+              </p>
             </div>
 
             <div class="article">
               <h6 class="article-title">二、活动参与规则</h6>
-              <p>1. <strong>参与资格</strong>：<strong>仅限非浙江省温州中学在校学生参与</strong>，浙江省温州中学在校学生参与本次抽奖的，其参与及中奖结果均视为无效。</p>
-              <p>2. <strong>参与方式</strong>：用户通过主办方指定的活动网页，按照页面提示完成相关操作，即可参与本次抽奖活动。</p>
-              <p>3. <strong>参与次数</strong>：为保障活动公平性，同一用户仅限参与一次抽奖，同一姓名、同一设备均认定为同一用户，禁止重复参与、恶意刷取抽奖资格，严禁借助外挂、脚本等工具违规参与活动。</p>
-              <p>4. <strong>开奖方式</strong>：本次活动采用定时开奖模式，具体开奖时间于活动网站首页予以公示，开奖结果同步在活动网站正式公布。</p>
+              <p>
+                1.
+                <strong>参与资格</strong
+                >：<strong>仅限非浙江省温州中学在校学生参与</strong>，浙江省温州中学在校学生参与本次抽奖的，其参与及中奖结果均视为无效。
+              </p>
+              <p>
+                2.
+                <strong>参与方式</strong
+                >：用户通过主办方指定的活动网页，按照页面提示完成相关操作，即可参与本次抽奖活动。
+              </p>
+              <p>
+                3.
+                <strong>参与次数</strong
+                >：为保障活动公平性，同一用户仅限参与一次抽奖，同一姓名、同一设备均认定为同一用户，禁止重复参与、恶意刷取抽奖资格，严禁借助外挂、脚本等工具违规参与活动。
+              </p>
+              <p>
+                4.
+                <strong>开奖方式</strong
+                >：本次活动采用定时开奖模式，具体开奖时间于活动网站首页予以公示，开奖结果同步在活动网站正式公布。
+              </p>
             </div>
 
             <div class="article">
               <h6 class="article-title">三、中奖及电子门票查询规则</h6>
-              <p>1. 主办方将按照<strong>随机抽取</strong>原则确定中奖用户，中奖结果以活动网站公示内容为准，主办方不另行发送系统通知。</p>
+              <p>
+                1.
+                主办方将按照<strong>随机抽取</strong>原则确定中奖用户，中奖结果以活动网站公示内容为准，主办方不另行发送系统通知。
+              </p>
               <p>2. 中奖用户登录活动网站，即可查询并获取本人专属电子门票。</p>
-              <p>3. 若用户存在违规参与行为，主办方有权直接取消其中奖资格，注销对应电子门票，且不予补充抽取中奖名额。</p>
+              <p>
+                3.
+                若用户存在违规参与行为，主办方有权直接取消其中奖资格，注销对应电子门票，且不予补充抽取中奖名额。
+              </p>
             </div>
 
             <div class="article">
               <h6 class="article-title">四、电子门票使用及入场规范</h6>
-              <p>1. 本次活动奖品为浙江省温州中学2026年社团开放日电子门票，仅限本次社团开放日作为入场凭证使用。</p>
-              <p>2. 中奖用户须在活动规定时段内抵达现场，按照现场工作人员指引完成检票入场流程。</p>
-              <p>3. 电子门票<strong>仅限中奖用户本人使用</strong>，不得兑换现金、不得转售、不得转让。</p>
-              <p>4. 用户须保证所提交的个人信息真实、准确，因信息填写错误、虚假不实导致无法查询电子门票、无法完成检票入场的，相关责任由用户自行承担。</p>
+              <p>
+                1.
+                本次活动奖品为浙江省温州中学2026年社团开放日电子门票，仅限本次社团开放日作为入场凭证使用。
+              </p>
+              <p>
+                2.
+                中奖用户须在活动规定时段内抵达现场，按照现场工作人员指引完成检票入场流程。
+              </p>
+              <p>
+                3.
+                电子门票<strong>仅限中奖用户本人使用</strong>，不得兑换现金、不得转售、不得转让。
+              </p>
+              <p>
+                4.
+                用户须保证所提交的个人信息真实、准确，因信息填写错误、虚假不实导致无法查询电子门票、无法完成检票入场的，相关责任由用户自行承担。
+              </p>
             </div>
 
             <div class="article">
               <h6 class="article-title">五、用户权利与义务</h6>
-              <p>1. 用户有权依据本协议约定，公平参与本次抽奖活动，符合中奖条件的，可登录活动网站查询本人电子门票。</p>
-              <p>2. 用户须严格遵守本协议及活动相关规则，秉持诚信原则参与活动，不得扰乱活动正常开展秩序。</p>
-              <p>3. 用户须按照主办方要求，填报真实有效的个人信息，并配合主办方完成信息核验相关工作。</p>
+              <p>
+                1.
+                用户有权依据本协议约定，公平参与本次抽奖活动，符合中奖条件的，可登录活动网站查询本人电子门票。
+              </p>
+              <p>
+                2.
+                用户须严格遵守本协议及活动相关规则，秉持诚信原则参与活动，不得扰乱活动正常开展秩序。
+              </p>
+              <p>
+                3.
+                用户须按照主办方要求，填报真实有效的个人信息，并配合主办方完成信息核验相关工作。
+              </p>
             </div>
 
             <div class="article">
               <h6 class="article-title">六、主办方权利与义务</h6>
-              <p>1. 主办方将遵循公平、公正原则开展抽奖活动，按期完成开奖、结果公示及电子门票生成工作。</p>
-              <p>2. 主办方有权对用户参与行为进行合规核查，对存在违规作弊、扰乱活动秩序行为的用户，取消其参与及中奖资格，下架对应电子门票。</p>
-              <p>3. 因活动开展情况、网络故障、学校工作安排、政策调整等客观因素，主办方在活动网站提前公示后，可对活动时间、开奖安排等内容进行调整、暂停或终止，无需承担违约责任。</p>
-              <p>4. 主办方将妥善保管用户提交的个人信息，严格按照本文件隐私政策相关条款，规范使用并保障用户信息安全。</p>
+              <p>
+                1.
+                主办方将遵循公平、公正原则开展抽奖活动，按期完成开奖、结果公示及电子门票生成工作。
+              </p>
+              <p>
+                2.
+                主办方有权对用户参与行为进行合规核查，对存在违规作弊、扰乱活动秩序行为的用户，取消其参与及中奖资格，下架对应电子门票。
+              </p>
+              <p>
+                3.
+                因活动开展情况、网络故障、学校工作安排、政策调整等客观因素，主办方在活动网站提前公示后，可对活动时间、开奖安排等内容进行调整、暂停或终止，无需承担违约责任。
+              </p>
+              <p>
+                4.
+                主办方将妥善保管用户提交的个人信息，严格按照本文件隐私政策相关条款，规范使用并保障用户信息安全。
+              </p>
             </div>
 
             <div class="article">
               <h6 class="article-title">七、免责条款</h6>
-              <p>1. 因网络故障、系统维护、网络拥堵、自然灾害、学校政策调整等非主办方主观过错导致的活动无法正常开展、抽奖失败、开奖延迟、电子门票查询异常等情形，主办方不承担违约责任。</p>
-              <p>2. 因用户自身操作失误、设备故障、不符合参与资格、提交虚假信息等个人原因，导致无法参与抽奖或无法查询、使用电子门票的，主办方不承担任何责任。</p>
-              <p>3. 活动因客观原因调整、暂停或终止后，主办方无需向用户进行额外补偿。</p>
+              <p>
+                1.
+                因网络故障、系统维护、网络拥堵、自然灾害、学校政策调整等非主办方主观过错导致的活动无法正常开展、抽奖失败、开奖延迟、电子门票查询异常等情形，主办方不承担违约责任。
+              </p>
+              <p>
+                2.
+                因用户自身操作失误、设备故障、不符合参与资格、提交虚假信息等个人原因，导致无法参与抽奖或无法查询、使用电子门票的，主办方不承担任何责任。
+              </p>
+              <p>
+                3.
+                活动因客观原因调整、暂停或终止后，主办方无需向用户进行额外补偿。
+              </p>
             </div>
 
             <div class="article">
               <h6 class="article-title">八、协议变更与终止</h6>
-              <p>1. 主办方可根据活动实际需求、相关管理要求，对本协议条款进行修订、补充，修订后的协议内容于活动网站公示后即时生效。</p>
-              <p>2. 用户若不同意修订后的协议条款，可立即停止参与活动；用户继续参与活动的，视为同意并接受修订后的全部条款。</p>
-              <p>3. 本次抽奖活动全部流程完结，或用户因违规行为被取消参与资格的，本协议自动终止。</p>
+              <p>
+                1.
+                主办方可根据活动实际需求、相关管理要求，对本协议条款进行修订、补充，修订后的协议内容于活动网站公示后即时生效。
+              </p>
+              <p>
+                2.
+                用户若不同意修订后的协议条款，可立即停止参与活动；用户继续参与活动的，视为同意并接受修订后的全部条款。
+              </p>
+              <p>
+                3.
+                本次抽奖活动全部流程完结，或用户因违规行为被取消参与资格的，本协议自动终止。
+              </p>
             </div>
 
             <div class="article">
               <h6 class="article-title">九、其他条款</h6>
-              <p>1. 本次浙江省温州中学2026年社团开放日门票抽奖活动<strong>最终解释权归浙江省温州中学社团联合会所有</strong>。</p>
+              <p>
+                1.
+                本次浙江省温州中学2026年社团开放日门票抽奖活动<strong>最终解释权归浙江省温州中学社团联合会所有</strong>。
+              </p>
               <p>2. 若本协议部分条款被认定为无效，不影响其余条款的法律效力。</p>
               <p>3. 活动相关通知、主办方联系方式，均以活动网站公示内容为准。</p>
             </div>
@@ -742,29 +907,47 @@ const handleSubmit = async () => {
 
             <div class="article">
               <h6 class="article-title">一、信息收集范围</h6>
-              <p>主办方仅为本次抽奖活动资格核验、中奖信息核实、电子门票身份确认及现场检票入场需要，收集用户填报的姓名、联系方式等基础个人信息，不收集与本次活动无关的其他个人信息。</p>
+              <p>
+                主办方仅为本次抽奖活动资格核验、中奖信息核实、电子门票身份确认及现场检票入场需要，收集用户填报的姓名、联系方式等基础个人信息，不收集与本次活动无关的其他个人信息。
+              </p>
             </div>
 
             <div class="article">
               <h6 class="article-title">二、信息使用规范</h6>
-              <p>1. 用户提交的个人信息，仅用于本次抽奖活动资格审核、中奖公示、电子门票身份核验及现场入场核实，不用于其他任何无关用途。</p>
-              <p>2. 主办方不得向任何第三方泄露、出售、出租用户个人信息，法律法规另有规定或取得用户明确书面同意的除外。</p>
+              <p>
+                1.
+                用户提交的个人信息，仅用于本次抽奖活动资格审核、中奖公示、电子门票身份核验及现场入场核实，不用于其他任何无关用途。
+              </p>
+              <p>
+                2.
+                主办方不得向任何第三方泄露、出售、出租用户个人信息，法律法规另有规定或取得用户明确书面同意的除外。
+              </p>
             </div>
 
             <div class="article">
               <h6 class="article-title">三、信息安全保障</h6>
-              <p>1. 主办方将采取合理的技术及管理措施，妥善保管用户个人信息，防范信息泄露、丢失、篡改等情况发生，切实保障用户信息安全。</p>
-              <p>2. 本次活动全部流程结束后，主办方将按照相关规定，及时清理并删除用户提交的个人信息，不再留存。</p>
+              <p>
+                1.
+                主办方将采取合理的技术及管理措施，妥善保管用户个人信息，防范信息泄露、丢失、篡改等情况发生，切实保障用户信息安全。
+              </p>
+              <p>
+                2.
+                本次活动全部流程结束后，主办方将按照相关规定，及时清理并删除用户提交的个人信息，不再留存。
+              </p>
             </div>
 
             <div class="article">
               <h6 class="article-title">四、用户信息相关权利</h6>
-              <p>用户有权查询本人所提交的个人信息，如需修改、删除相关信息，可通过活动网站公示的联系方式与主办方对接处理。</p>
+              <p>
+                用户有权查询本人所提交的个人信息，如需修改、删除相关信息，可通过活动网站公示的联系方式与主办方对接处理。
+              </p>
             </div>
 
             <div class="article">
               <h6 class="article-title">五、政策修订</h6>
-              <p>主办方可根据活动实际情况对本隐私政策进行调整，调整后的内容于活动网站公示后生效。</p>
+              <p>
+                主办方可根据活动实际情况对本隐私政策进行调整，调整后的内容于活动网站公示后生效。
+              </p>
             </div>
           </div>
         </div>
@@ -834,11 +1017,18 @@ const handleSubmit = async () => {
     >
       <div class="wechat-qr-popup">
         <h4 class="popup-title">观众微信群</h4>
-        <p class="popup-desc">请扫描下方二维码加入观众微信群，获取活动最新动态</p>
+        <p class="popup-desc">
+          请扫描下方二维码加入观众微信群，获取活动最新动态
+        </p>
         <div class="qr-image">
           <img :src="wechatQrDataUrl" alt="微信群二维码" />
         </div>
-        <van-button type="primary" block round @click="showWechatQrPopup = false">
+        <van-button
+          type="primary"
+          block
+          round
+          @click="showWechatQrPopup = false"
+        >
           关闭
         </van-button>
       </div>

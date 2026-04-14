@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 
 useHead({
-  title: "抽奖管理"
+  title: "抽奖管理",
 });
 import { showToast, showSuccessToast, showConfirmDialog } from "vant";
 
@@ -220,9 +220,12 @@ const fetchParticipants = async () => {
     if (showDuplicates.value) {
       params.set("duplicates", "true");
     }
-    const res = await $fetch<Participant[]>(`/api/admin/participants?${params.toString()}`, {
-      headers: getAuthHeaders(),
-    });
+    const res = await $fetch<Participant[]>(
+      `/api/admin/participants?${params.toString()}`,
+      {
+        headers: getAuthHeaders(),
+      },
+    );
     participants.value = res;
   } catch (e: any) {
     if (e.response?.status === 401) {
@@ -341,7 +344,7 @@ const runDraw = async () => {
       {
         method: "POST",
         headers: getAuthHeaders(),
-      }
+      },
     );
     showSuccessToast(`开奖成功，共 ${res.winnerCount} 人中奖`);
     fetchData();
@@ -397,7 +400,9 @@ const deleteParticipant = async (p: Participant) => {
       message: `确定删除 ${p.name} 吗？是否同时将该设备加入黑名单？`,
       confirmButtonText: "删除并加入黑名单",
       cancelButtonText: "仅删除",
-    }).then(() => true).catch(() => false);
+    })
+      .then(() => true)
+      .catch(() => false);
 
     await $fetch("/api/admin/participant/delete", {
       method: "POST",
@@ -427,7 +432,13 @@ const setForceResult = async (p: Participant, result: "WIN" | "LOSE") => {
         forceResult: newResult,
       },
     });
-    showSuccessToast(newResult === null ? "已取消强制" : newResult === "WIN" ? "已设为必中" : "已设为必不中");
+    showSuccessToast(
+      newResult === null
+        ? "已取消强制"
+        : newResult === "WIN"
+          ? "已设为必中"
+          : "已设为必不中",
+    );
     fetchParticipants();
   } catch (e: any) {
     showToast(e.data?.statusMessage || "设置失败");
@@ -580,7 +591,9 @@ onMounted(() => {
             <div class="card-body">
               <div class="status-row">
                 <span class="status-label">抽奖状态</span>
-                <van-tag :type="config?.drawStatus === 'DONE' ? 'success' : 'primary'">
+                <van-tag
+                  :type="config?.drawStatus === 'DONE' ? 'success' : 'primary'"
+                >
                   {{ drawStatusText }}
                 </van-tag>
               </div>
@@ -603,10 +616,20 @@ onMounted(() => {
                   执行开奖
                 </van-button>
                 <template v-else>
-                  <van-button type="primary" size="small" block @click="openWinnersModal">
+                  <van-button
+                    type="primary"
+                    size="small"
+                    block
+                    @click="openWinnersModal"
+                  >
                     查看中奖者
                   </van-button>
-                  <van-button type="danger" size="small" block @click="deleteResult">
+                  <van-button
+                    type="danger"
+                    size="small"
+                    block
+                    @click="deleteResult"
+                  >
                     删除结果
                   </van-button>
                 </template>
@@ -667,7 +690,12 @@ onMounted(() => {
                   placeholder="输入微信群二维码解码内容"
                 />
               </div>
-              <van-button type="primary" size="small" block @click="updateConfig">
+              <van-button
+                type="primary"
+                size="small"
+                block
+                @click="updateConfig"
+              >
                 保存配置
               </van-button>
             </div>
@@ -732,7 +760,12 @@ onMounted(() => {
             </div>
             <div class="card-body">
               <p class="warning-text">重置将删除所有参与者数据和抽奖结果</p>
-              <van-button type="danger" size="small" block @click="resetActivity">
+              <van-button
+                type="danger"
+                size="small"
+                block
+                @click="resetActivity"
+              >
                 重置活动
               </van-button>
             </div>
@@ -799,9 +832,12 @@ onMounted(() => {
                 <van-button
                   size="small"
                   :type="showDuplicates ? 'primary' : 'default'"
-                  @click="showDuplicates = !showDuplicates; fetchParticipants()"
+                  @click="
+                    showDuplicates = !showDuplicates;
+                    fetchParticipants();
+                  "
                 >
-                  {{ showDuplicates ? '全部' : '重名' }}
+                  {{ showDuplicates ? "全部" : "重名" }}
                 </van-button>
               </template>
             </van-search>
@@ -819,21 +855,41 @@ onMounted(() => {
                   <div class="item-school">{{ p.school }}</div>
                 </div>
                 <div class="item-right">
-                  <van-tag v-if="p.forceResult === 'WIN'" type="success" size="medium" plain>
+                  <van-tag
+                    v-if="p.forceResult === 'WIN'"
+                    type="success"
+                    size="medium"
+                    plain
+                  >
                     必中
                   </van-tag>
-                  <van-tag v-else-if="p.forceResult === 'LOSE'" type="warning" size="medium" plain>
+                  <van-tag
+                    v-else-if="p.forceResult === 'LOSE'"
+                    type="warning"
+                    size="medium"
+                    plain
+                  >
                     必不中
                   </van-tag>
-                  <van-tag v-if="p.drawResult === 'WIN'" type="success" size="medium">
+                  <van-tag
+                    v-if="p.drawResult === 'WIN'"
+                    type="success"
+                    size="medium"
+                  >
                     中奖
                   </van-tag>
-                  <van-tag v-else-if="p.drawResult === 'LOSE'" type="default" size="medium">
+                  <van-tag
+                    v-else-if="p.drawResult === 'LOSE'"
+                    type="default"
+                    size="medium"
+                  >
                     未中
                   </van-tag>
                   <van-tag v-else type="primary" size="medium">待开奖</van-tag>
                   <van-icon
-                    :name="expandedParticipant === p.id ? 'arrow-up' : 'arrow-down'"
+                    :name="
+                      expandedParticipant === p.id ? 'arrow-up' : 'arrow-down'
+                    "
                     class="expand-icon"
                   />
                 </div>
@@ -841,7 +897,9 @@ onMounted(() => {
               <div v-if="expandedParticipant === p.id" class="item-detail">
                 <div class="detail-row">
                   <span class="detail-label">报名时间</span>
-                  <span class="detail-value">{{ formatDateTime(p.createdAt) }}</span>
+                  <span class="detail-value">{{
+                    formatDateTime(p.createdAt)
+                  }}</span>
                 </div>
                 <div v-if="p.recoverCode" class="detail-row">
                   <span class="detail-label">找回码</span>
@@ -854,7 +912,9 @@ onMounted(() => {
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">指纹</span>
-                  <span class="detail-value fingerprint">{{ p.fingerprintHash }}</span>
+                  <span class="detail-value fingerprint">{{
+                    p.fingerprintHash
+                  }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">IP地址</span>
@@ -866,14 +926,22 @@ onMounted(() => {
                 </div>
                 <div v-if="p.ticket" class="detail-row">
                   <span class="detail-label">门票码</span>
-                  <span class="detail-value">{{ formatTicketCode(p.ticket.ticketCode) }}</span>
+                  <span class="detail-value">{{
+                    formatTicketCode(p.ticket.ticketCode)
+                  }}</span>
                 </div>
                 <div v-if="p.ticket" class="detail-row">
                   <span class="detail-label">门票状态</span>
                   <van-tag
                     :type="p.ticket.status === 'VALID' ? 'success' : 'default'"
                   >
-                    {{ p.ticket.status === 'VALID' ? '有效' : p.ticket.status === 'USED' ? '已使用' : '已过期' }}
+                    {{
+                      p.ticket.status === "VALID"
+                        ? "有效"
+                        : p.ticket.status === "USED"
+                          ? "已使用"
+                          : "已过期"
+                    }}
                   </van-tag>
                 </div>
                 <div class="detail-actions">
@@ -962,14 +1030,21 @@ onMounted(() => {
             <div v-if="blacklist.length === 0" class="empty-text">
               暂无黑名单用户
             </div>
-            <div v-for="item in blacklist" :key="item.id" class="blacklist-item">
+            <div
+              v-for="item in blacklist"
+              :key="item.id"
+              class="blacklist-item"
+            >
               <van-cell
                 :title="item.name || '未知'"
                 :label="item.school || '未知学校'"
                 is-link
                 @click="toggleBlacklistExpand(item.id)"
               />
-              <div v-if="expandedBlacklist.has(item.id)" class="blacklist-detail">
+              <div
+                v-if="expandedBlacklist.has(item.id)"
+                class="blacklist-detail"
+              >
                 <div class="detail-row">
                   <span class="detail-label">指纹</span>
                   <span
@@ -981,7 +1056,9 @@ onMounted(() => {
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">加入时间</span>
-                  <span class="detail-value">{{ formatDateTime(item.createdAt) }}</span>
+                  <span class="detail-value">{{
+                    formatDateTime(item.createdAt)
+                  }}</span>
                 </div>
                 <van-button
                   type="primary"

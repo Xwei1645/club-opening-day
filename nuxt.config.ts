@@ -3,8 +3,8 @@ export default defineNuxtConfig({
   ssr: false,
   app: {
     head: {
-      titleTemplate: "%s - UniWZHS"
-    }
+      titleTemplate: "%s - UniWZHS",
+    },
   },
   devtools: { enabled: process.env.NODE_ENV === "development" },
   sourcemap: {

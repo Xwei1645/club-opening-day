@@ -13,7 +13,9 @@ function getCookie(name: string): string | null {
 }
 
 function setCookie(name: string, value: string, days: number = 365): void {
-  const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
+  const expires = new Date(
+    Date.now() + days * 24 * 60 * 60 * 1000,
+  ).toUTCString();
   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
 }
 
@@ -62,9 +64,9 @@ export function updateFingerprint(newFp: string): void {
 export function getLocalRecoverCode(): string | null {
   const localCode = localStorage.getItem(RECOVER_CODE_STORAGE_KEY);
   const cookieCode = getCookie(RECOVER_CODE_COOKIE_KEY);
-  
+
   const code = localCode || cookieCode || null;
-  
+
   if (code) {
     if (!localCode) {
       localStorage.setItem(RECOVER_CODE_STORAGE_KEY, code);
@@ -73,7 +75,7 @@ export function getLocalRecoverCode(): string | null {
       setCookie(RECOVER_CODE_COOKIE_KEY, code);
     }
   }
-  
+
   return code;
 }
 

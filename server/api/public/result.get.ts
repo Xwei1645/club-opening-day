@@ -4,7 +4,9 @@ import { ensureDrawConfig, syncExpiredTickets } from "../../utils/draw";
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
-  const recoverCode = String(query.recoverCode || "").trim().toUpperCase();
+  const recoverCode = String(query.recoverCode || "")
+    .trim()
+    .toUpperCase();
   if (!recoverCode || recoverCode.length !== 6) {
     return { participated: false };
   }

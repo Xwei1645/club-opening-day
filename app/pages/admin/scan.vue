@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from "vue";
 
 useHead({
-  title: "扫码验票"
+  title: "扫码验票",
 });
 import jsQR from "jsqr";
 
@@ -53,7 +53,7 @@ const getAuthHeaders = () => {
 const showResultPopup = (
   status: "success" | "used" | "expired" | "invalid",
   message: string,
-  participant?: { name: string; school: string }
+  participant?: { name: string; school: string },
 ) => {
   if (resultTimeout) {
     clearTimeout(resultTimeout);
@@ -92,7 +92,7 @@ const verifyTicket = async (code: string) => {
       showResultPopup(
         status === "used" ? "used" : "expired",
         status === "used" ? "已使用" : "已过期",
-        res.participant
+        res.participant,
       );
     }
 
@@ -127,13 +127,13 @@ const tick = () => {
       0,
       0,
       canvasElement.width,
-      canvasElement.height
+      canvasElement.height,
     );
     const imageData = canvasContext.getImageData(
       0,
       0,
       canvasElement.width,
-      canvasElement.height
+      canvasElement.height,
     );
     const code = jsQR(imageData.data, imageData.width, imageData.height, {
       inversionAttempts: "dontInvert",
@@ -325,10 +325,16 @@ onUnmounted(() => {
             class="record-item"
           >
             <div class="record-left">
-              <div class="record-status" :style="{ color: getStatusColor(record.status) }">
+              <div
+                class="record-status"
+                :style="{ color: getStatusColor(record.status) }"
+              >
                 {{ getStatusText(record.status) }}
               </div>
-              <div v-if="record.name || record.school" class="record-participant">
+              <div
+                v-if="record.name || record.school"
+                class="record-participant"
+              >
                 <span v-if="record.name">{{ record.name }}</span>
                 <span v-if="record.name && record.school"> · </span>
                 <span v-if="record.school">{{ record.school }}</span>

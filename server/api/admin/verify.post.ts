@@ -5,7 +5,11 @@ import { requestMeta } from "../../utils/request-meta";
 import { syncExpiredTickets } from "../../utils/draw";
 
 const schema = z.object({
-  ticketCode: z.string().trim().min(8).transform(v => v.replace(/\s/g, "")),
+  ticketCode: z
+    .string()
+    .trim()
+    .min(8)
+    .transform((v) => v.replace(/\s/g, "")),
   operator: z.string().trim().max(80).optional(),
 });
 

@@ -12,7 +12,9 @@ function generateRandomCode(): string {
   return code;
 }
 
-export async function generateUniqueRecoverCode(maxAttempts: number = 100): Promise<string> {
+export async function generateUniqueRecoverCode(
+  maxAttempts: number = 100,
+): Promise<string> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const code = generateRandomCode();
     const existing = await prisma.participant.findUnique({
@@ -22,5 +24,7 @@ export async function generateUniqueRecoverCode(maxAttempts: number = 100): Prom
       return code;
     }
   }
-  throw new Error("Failed to generate unique recover code after maximum attempts");
+  throw new Error(
+    "Failed to generate unique recover code after maximum attempts",
+  );
 }

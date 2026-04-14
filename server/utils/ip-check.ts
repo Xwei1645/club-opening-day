@@ -5,15 +5,26 @@ interface IpApiResponse {
   country?: string;
 }
 
-export async function checkIpLocation(ip: string): Promise<{ allowed: boolean; city?: string; region?: string }> {
-  if (!ip || ip === "::1" || ip === "127.0.0.1" || ip.startsWith("192.168.") || ip.startsWith("10.")) {
+export async function checkIpLocation(
+  ip: string,
+): Promise<{ allowed: boolean; city?: string; region?: string }> {
+  if (
+    !ip ||
+    ip === "::1" ||
+    ip === "127.0.0.1" ||
+    ip.startsWith("192.168.") ||
+    ip.startsWith("10.")
+  ) {
     return { allowed: true, city: "本地", region: "本地" };
   }
 
   try {
-    const response = await $fetch<IpApiResponse>(`http://ip-api.com/json/${ip}?lang=zh-CN`, {
-      timeout: 5000,
-    });
+    const response = await $fetch<IpApiResponse>(
+      `http://ip-api.com/json/${ip}?lang=zh-CN`,
+      {
+        timeout: 5000,
+      },
+    );
 
     if (response.status !== "success") {
       return { allowed: true };
