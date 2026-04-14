@@ -1,6 +1,11 @@
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   ssr: false,
+  app: {
+    head: {
+      titleTemplate: "%s - UniWZHS"
+    }
+  },
   devtools: { enabled: process.env.NODE_ENV === "development" },
   sourcemap: {
     server: false,

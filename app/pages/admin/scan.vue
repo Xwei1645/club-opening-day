@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
+
+useHead({
+  title: "扫码验票"
+});
 import jsQR from "jsqr";
 
 interface ScanResult {

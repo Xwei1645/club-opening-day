@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+
+useHead({
+  title: "抽奖管理"
+});
 import { showToast, showSuccessToast, showConfirmDialog } from "vant";
 
 interface DrawConfig {
