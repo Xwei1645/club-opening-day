@@ -564,7 +564,7 @@ const handleSubmit = async () => {
                   <van-icon name="warning-o" />
                   <span>门票已过期</span>
                 </div>
-                <div v-else class="ticket-status valid">
+                <div v-else-if="!isTicketUsed" class="ticket-status valid">
                   <van-icon name="scan" />
                   <span>请向工作人员出示二维码，有序检票入场</span>
                 </div>
@@ -588,6 +588,10 @@ const handleSubmit = async () => {
                   <div v-if="isTicketUsed" class="qr-code-overlay">
                     <van-icon name="certificate" class="overlay-icon" />
                     <span class="overlay-text">已使用</span>
+                  </div>
+                  <div v-else-if="isTicketExpired" class="qr-code-overlay">
+                    <van-icon name="warning-o" class="overlay-icon" />
+                    <span class="overlay-text">已过期</span>
                   </div>
                 </div>
 
