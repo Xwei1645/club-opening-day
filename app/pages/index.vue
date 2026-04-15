@@ -225,6 +225,23 @@ const copyRecoverCode = () => {
 
 const isWinner = computed(() => resultData.value?.stage === "win");
 
+const isDrawDone = computed(() => config.value?.drawStatus === "DONE");
+
+const isResultPublished = computed(
+  () => config.value?.publishStatus === "PUBLIC",
+);
+
+const showRegistrationClosed = computed(
+  () =>
+    isDrawDone.value &&
+    !isResultPublished.value &&
+    !resultData.value?.participated,
+);
+
+const showEventEnded = computed(
+  () => isDrawDone.value && isResultPublished.value && !resultData.value?.participated,
+);
+
 const drawAtFormatted = computed(() => {
   if (!config.value?.drawAt) return "";
   const date = new Date(config.value.drawAt);
@@ -467,6 +484,27 @@ const handleSubmit = async () => {
 
           <template v-if="!resultData?.participated">
             <van-button
+              v-if="showRegistrationClosed"
+              disabled
+              block
+              round
+              icon="info-o"
+              class="disabled-btn"
+            >
+              报名截止
+            </van-button>
+            <van-button
+              v-else-if="showEventEnded"
+              disabled
+              block
+              round
+              icon="warning-o"
+              class="disabled-btn"
+            >
+              活动已结束
+            </van-button>
+            <van-button
+              v-else
               type="primary"
               block
               round
@@ -1141,6 +1179,12 @@ const handleSubmit = async () => {
 
   .card-body {
     padding: 20px 24px 28px;
+
+    .disabled-btn {
+      background-color: #aaaaaa;
+      color: #fff;
+      border: none;
+    }
 
     .draw-time {
       text-align: center;

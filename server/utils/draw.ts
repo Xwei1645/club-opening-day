@@ -165,6 +165,12 @@ export async function runDrawIfNeeded() {
     }
 
     const result = await executeDraw(tx, current);
+
+    await tx.drawConfig.update({
+      where: { id: 1 },
+      data: { publishStatus: "PUBLIC" },
+    });
+
     return { executed: true, ...result };
   });
 }
