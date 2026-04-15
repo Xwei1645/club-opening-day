@@ -261,8 +261,8 @@ const ticketCodeFormatted = computed(() => {
 });
 
 const ticketExpiresAtFormatted = computed(() => {
-  if (!resultData.value?.ticket?.expiresAt) return "";
-  const date = new Date(resultData.value.ticket.expiresAt);
+  if (!config.value?.ticketExpireAt) return "";
+  const date = new Date(config.value.ticketExpireAt);
   return date.toLocaleString("zh-CN", {
     year: "numeric",
     month: "long",
@@ -273,8 +273,8 @@ const ticketExpiresAtFormatted = computed(() => {
 });
 
 const isTicketExpired = computed(() => {
-  if (!resultData.value?.ticket?.expiresAt) return false;
-  return new Date(resultData.value.ticket.expiresAt) < new Date();
+  if (!config.value?.ticketExpireAt) return false;
+  return new Date(config.value.ticketExpireAt) < new Date();
 });
 
 const isTicketUsed = computed(() => {
@@ -560,11 +560,7 @@ const handleSubmit = async () => {
               v-else-if="resultData.stage === 'win' && resultData.ticket"
             >
               <div class="ticket-section">
-                <div v-if="isTicketExpired" class="ticket-status expired">
-                  <van-icon name="warning-o" />
-                  <span>门票已过期</span>
-                </div>
-                <div v-else-if="!isTicketUsed" class="ticket-status valid">
+                <div v-if="!isTicketUsed && !isTicketExpired" class="ticket-status valid">
                   <van-icon name="scan" />
                   <span>请向工作人员出示二维码，有序检票入场</span>
                 </div>
@@ -590,7 +586,7 @@ const handleSubmit = async () => {
                     <span class="overlay-text">已使用</span>
                   </div>
                   <div v-else-if="isTicketExpired" class="qr-code-overlay">
-                    <van-icon name="warning-o" class="overlay-icon" />
+                    <van-icon name="close" class="overlay-icon" />
                     <span class="overlay-text">已过期</span>
                   </div>
                 </div>
