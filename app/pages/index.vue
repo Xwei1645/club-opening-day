@@ -471,7 +471,7 @@ const handleSubmit = async () => {
           </div>
           <div class="event-name">2026年社团开放日</div>
           <div class="lottery-title">
-            <van-icon :name="isWinner ? 'ticket' : 'gift-o'" />
+            <van-icon :name="isWinner ? 'coupon' : 'gift-o'" />
             {{ isWinner ? "电子门票" : "门票抽奖" }}
           </div>
         </div>
@@ -569,7 +569,7 @@ const handleSubmit = async () => {
                   <span>门票已过期</span>
                 </div>
                 <div v-else class="ticket-status valid">
-                  <van-icon name="qr" />
+                  <van-icon name="scan" />
                   <span>请向工作人员出示二维码，有序检票入场</span>
                 </div>
 
