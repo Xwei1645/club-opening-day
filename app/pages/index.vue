@@ -516,7 +516,15 @@ const handleSubmit = async () => {
           </template>
 
           <template v-else-if="resultData">
-            <div class="ticket-info">
+            <div
+              v-if="
+                !(
+                  resultData.stage === 'win' &&
+                  resultData.ticket
+                )
+              "
+              class="ticket-info"
+            >
               <div class="info-item">
                 <span class="label">姓名</span>
                 <span class="value">{{ resultData.name }}</span>
