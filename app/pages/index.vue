@@ -560,11 +560,7 @@ const handleSubmit = async () => {
               v-else-if="resultData.stage === 'win' && resultData.ticket"
             >
               <div class="ticket-section">
-                <div v-if="isTicketUsed" class="ticket-status used">
-                  <van-icon name="clear" />
-                  <span>门票已使用</span>
-                </div>
-                <div v-else-if="isTicketExpired" class="ticket-status expired">
+                <div v-if="isTicketExpired" class="ticket-status expired">
                   <van-icon name="warning-o" />
                   <span>门票已过期</span>
                 </div>
@@ -589,6 +585,10 @@ const handleSubmit = async () => {
                   :class="{ disabled: isTicketUsed || isTicketExpired }"
                 >
                   <img :src="qrDataUrl" alt="门票二维码" />
+                  <div v-if="isTicketUsed" class="qr-code-overlay">
+                    <van-icon name="certificate" class="overlay-icon" />
+                    <span class="overlay-text">已使用</span>
+                  </div>
                 </div>
 
                 <div class="ticket-code">
@@ -1297,6 +1297,7 @@ const handleSubmit = async () => {
         border-radius: 12px;
         display: inline-block;
         margin-bottom: 16px;
+        position: relative;
 
         &.disabled {
           filter: grayscale(100%);
@@ -1306,6 +1307,32 @@ const handleSubmit = async () => {
         img {
           width: 180px;
           height: 180px;
+        }
+
+        .qr-code-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(255, 255, 255, 0.85);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          border-radius: 12px;
+
+          .overlay-icon {
+            font-size: 48px;
+            color: #999;
+            margin-bottom: 8px;
+          }
+
+          .overlay-text {
+            font-size: 18px;
+            font-weight: 500;
+            color: #666;
+          }
         }
       }
 
