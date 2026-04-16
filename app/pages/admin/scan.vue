@@ -284,7 +284,7 @@ onUnmounted(() => {
           v-model="manualCode"
           type="text"
           class="code-input"
-          placeholder="手动输入门票码"
+          placeholder="输入电子门票验证码"
           @keyup.enter="handleManualInput"
         />
         <button class="verify-btn" @click="handleManualInput">验证</button>
@@ -355,7 +355,7 @@ onUnmounted(() => {
 <style scoped lang="scss">
 .scan-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #e8f4fc 0%, #f5f7fa 100%);
+  background: #f5f5f5;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -403,7 +403,7 @@ onUnmounted(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: #000;
+  background: #fff;
   margin: 12px;
   border-radius: 16px;
 }
@@ -426,7 +426,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #1a1a1a;
+  background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -444,7 +444,7 @@ onUnmounted(() => {
 
     .scan-text {
       font-size: 18px;
-      color: #fff;
+      color: #333;
     }
   }
 }
