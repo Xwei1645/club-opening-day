@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../utils/prisma";
 import { requestMeta } from "../../utils/request-meta";
 import { syncExpiredTickets } from "../../utils/draw";
+import { sseManager } from "../../utils/sse";
 
 const schema = z.object({
   ticketCode: z
@@ -104,6 +105,8 @@ export default defineEventHandler(async (event) => {
       userAgent,
     },
   });
+
+  sseManager.notifyVerify(ticketCode);
 
   return { ok: true, status: "success", participant: participantInfo };
 });

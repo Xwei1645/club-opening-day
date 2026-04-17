@@ -81,6 +81,28 @@ const showRebindPopup = ref(false);
 const rebindRecoverCode = ref("");
 const rebinding = ref(false);
 
+let eventSource: any = null;
+
+const setupSSE = (ticketCode: string) => {
+  if (eventSource) {
+    eventSource.close();
+  }
+
+  eventSource = new EventSource(`/api/public/events?ticketCode=${ticketCode}`);
+
+  eventSource.addEventListener("verify-success", (event: any) => {
+    const data = JSON.parse(event.data);
+    showSuccessToast({
+      message: data.message,
+      duration: 3000,
+      onClose: () => {
+        window.location.reload();
+      },
+    });
+    eventSource?.close();
+  });
+};
+
 onMounted(async () => {
   const tipClosed = localStorage.getItem("wechatTipClosed");
   if (tipClosed === "true") {
@@ -328,6 +350,10 @@ const fetchResult = async () => {
         width: 200,
         margin: 2,
       });
+
+      if (res.ticket.status === "VALID") {
+        setupSSE(res.ticket.ticketCode);
+      }
     }
   } catch (e) {
     console.error("获取结果失败", e);
