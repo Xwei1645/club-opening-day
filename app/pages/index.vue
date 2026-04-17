@@ -646,21 +646,28 @@ const handleSubmit = async () => {
                       @click="closeWechatTip"
                     />
                   </div>
-                  <div class="wechat-link" @click="showWechatQrPopup = true">
-                    观众微信群二维码
-                  </div>
                 </div>
               </div>
             </template>
           </template>
         </div>
-        <div v-if="!resultData?.participated" class="card-footer">
-          <span class="recover-link" @click="showRebindPopup = true"
+        <div class="card-footer footer-links">
+          <span
+            v-if="config?.wechatQrCodeUrl"
+            class="recover-link"
+            @click="showWechatQrPopup = true"
+            >观众群</span
+          >
+          <span
+            v-if="!resultData?.participated"
+            class="recover-link"
+            @click="showRebindPopup = true"
             >找回抽奖记录</span
           >
-        </div>
-        <div v-else-if="resultData?.recoverCode" class="card-footer">
-          <span class="recover-link" @click="showRecoverCodePopup = true"
+          <span
+            v-else-if="resultData?.recoverCode"
+            class="recover-link"
+            @click="showRecoverCodePopup = true"
             >找回码</span
           >
         </div>
@@ -1207,8 +1214,11 @@ const handleSubmit = async () => {
   }
 
   .card-footer {
-    padding: 12px 24px 16px;
+    padding: 0 24px 20px;
     text-align: center;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
 
     .recover-link {
       font-size: 12px;
@@ -1222,7 +1232,7 @@ const handleSubmit = async () => {
   }
 
   .card-body {
-    padding: 20px 24px 28px;
+    padding: 20px 24px 12px;
 
     .disabled-btn {
       background-color: #aaaaaa;
@@ -1305,11 +1315,11 @@ const handleSubmit = async () => {
         align-items: center;
         justify-content: center;
         gap: 6px;
-        padding: 10px 14px;
+        padding: 8px 12px;
         border-radius: 8px;
         font-size: 14px;
         font-weight: 500;
-        margin-bottom: 16px;
+        margin-bottom: 12px;
 
         &.valid {
           background: #e8f5e9;
@@ -1328,11 +1338,11 @@ const handleSubmit = async () => {
       }
 
       .qr-code {
-        padding: 12px;
+        padding: 8px;
         background: #fff;
         border-radius: 12px;
         display: inline-block;
-        margin-bottom: 16px;
+        margin-bottom: 8px;
         position: relative;
 
         &.disabled {
@@ -1404,7 +1414,7 @@ const handleSubmit = async () => {
       }
 
       .wechat-section {
-        margin-top: 16px;
+        margin-top: 12px;
 
         .wechat-tip {
           display: flex;
