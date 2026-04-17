@@ -92,13 +92,22 @@ const setupSSE = (ticketCode: string) => {
 
   eventSource.addEventListener("verify-success", (event: any) => {
     const data = JSON.parse(event.data);
+    
+    if ("vibrate" in navigator) {
+      navigator.vibrate([200, 100, 200]);
+    }
+
+    if (resultData.value?.ticket) {
+      resultData.value.ticket.status = "USED";
+      resultData.value.ticket.usedAt = new Date().toISOString();
+    }
+
     showSuccessToast({
       message: data.message,
-      duration: 3000,
-      onClose: () => {
-        window.location.reload();
-      },
+      duration: 2000,
+      icon: "flower-o",
     });
+    
     eventSource?.close();
   });
 };
