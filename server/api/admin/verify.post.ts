@@ -10,7 +10,7 @@ const schema = z.object({
     .string()
     .trim()
     .min(8)
-    .transform((v) => v.replace(/\s/g, "")),
+    .transform((v) => v.replace(/\s/g, "").toUpperCase()),
   operator: z.string().trim().max(80).optional(),
 });
 
