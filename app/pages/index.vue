@@ -230,6 +230,7 @@ const handleNameVerify = async () => {
       pendingParticipants.value = [];
       showSuccessToast("验证成功");
       await fetchResult();
+      showRecoverCodePopup.value = true;
     }
   } catch (e: any) {
     showToast(e.data?.statusMessage || "验证失败");
