@@ -637,7 +637,7 @@ const handleSubmit = async () => {
                   <span class="time">{{ ticketExpiresAtFormatted }}</span>
                 </div>
 
-                <div v-if="config?.wechatQrCodeUrl" class="wechat-section">
+                <div v-if="config?.wechatQrCodeUrl && resultData?.stage === 'win' && resultData?.ticket" class="wechat-section">
                   <div v-if="showWechatTip" class="wechat-tip">
                     <span>请加入观众微信群获取活动最新动态</span>
                     <van-icon
@@ -653,7 +653,7 @@ const handleSubmit = async () => {
         </div>
         <div class="card-footer footer-links">
           <span
-            v-if="config?.wechatQrCodeUrl"
+            v-if="config?.wechatQrCodeUrl && resultData?.stage === 'win' && resultData?.ticket"
             class="recover-link"
             @click="showWechatQrPopup = true"
             >观众群</span
