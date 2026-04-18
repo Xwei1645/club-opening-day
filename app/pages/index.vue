@@ -1127,7 +1127,6 @@ const handleSubmit = async () => {
 
 <style scoped lang="scss">
 .page-container {
-  min-height: 100vh;
   background: linear-gradient(135deg, #e8f4fc 0%, #f5f7fa 100%);
   display: flex;
   align-items: center;
