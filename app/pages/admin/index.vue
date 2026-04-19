@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 
 useHead({
   title: "抽奖管理",
@@ -68,6 +68,7 @@ const config = ref<DrawConfig | null>(null);
 const participants = ref<Participant[]>([]);
 const winners = ref<Winner[]>([]);
 const blacklist = ref<BlacklistItem[]>([]);
+const onlineCount = ref(0);
 
 const showDatePicker = ref(false);
 const showTimePicker = ref(false);
@@ -246,9 +247,20 @@ const fetchWinners = async () => {
   }
 };
 
+const fetchOnlineCount = async () => {
+  try {
+    const res = await $fetch<{ count: number }>("/api/admin/online-count", {
+      headers: getAuthHeaders(),
+    });
+    onlineCount.value = res.count;
+  } catch (e: any) {
+    // 忽略错误，以免干扰主流程
+  }
+};
+
 const fetchData = async () => {
   loading.value = true;
-  await Promise.all([fetchConfig(), fetchParticipants()]);
+  await Promise.all([fetchConfig(), fetchParticipants(), fetchOnlineCount()]);
   loading.value = false;
 };
 
@@ -547,12 +559,25 @@ const copyRecoverCode = async (code: string) => {
   }
 };
 
+let onlineInterval: any = null;
+
 onMounted(() => {
   const savedToken = localStorage.getItem("adminToken");
   if (savedToken) {
     password.value = savedToken;
     isLoggedIn.value = true;
     fetchData();
+  }
+  onlineInterval = setInterval(() => {
+    if (isLoggedIn.value) {
+      fetchOnlineCount();
+    }
+  }, 5000);
+});
+
+onUnmounted(() => {
+  if (onlineInterval) {
+    clearInterval(onlineInterval);
   }
 });
 </script>
@@ -712,6 +737,10 @@ onMounted(() => {
                 <div class="stat-item">
                   <span class="stat-value">{{ participants.length }}</span>
                   <span class="stat-label">总数</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-value">{{ onlineCount }}</span>
+                  <span class="stat-label">在线</span>
                 </div>
                 <div class="stat-item pending">
                   <span class="stat-value">{{ pendingCount }}</span>
