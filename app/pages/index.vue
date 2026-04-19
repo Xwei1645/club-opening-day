@@ -92,10 +92,6 @@ const setupSSE = (ticketCode: string) => {
 
   eventSource.addEventListener("verify-success", (event: any) => {
     const data = JSON.parse(event.data);
-    
-    if ("vibrate" in navigator) {
-      navigator.vibrate([200, 100, 200]);
-    }
 
     if (resultData.value?.ticket) {
       resultData.value.ticket.status = "USED";
@@ -104,7 +100,7 @@ const setupSSE = (ticketCode: string) => {
 
     showSuccessToast({
       message: data.message,
-      duration: 2000,
+      duration: 3000,
       icon: "flower-o",
     });
     
