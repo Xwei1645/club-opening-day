@@ -69,6 +69,9 @@ interface Inspector {
 }
 
 const password = ref("");
+const loginType = ref<"admin" | "inspector">("admin");
+
+
 const isLoggedIn = ref(false);
 const loading = ref(false);
 
@@ -164,37 +167,48 @@ const formatTicketCode = (code: string) => {
 
 const handleLogin = async () => {
   if (!password.value.trim()) {
-    showToast("请输入密码或令牌");
+    showToast("请输入令牌");
     return;
   }
 
   const token = password.value.trim();
 
   try {
-    // 尝试获取配置以验证身份
-    await $fetch("/api/admin/draw-config", {
-      headers: { "x-admin-token": token },
+    // 统一使用 verify-token 接口验证
+    const headers: Record<string, string> = {};
+    if (loginType.value === "admin") {
+      headers["x-admin-token"] = token;
+    } else {
+      headers["x-inspector-token"] = token;
+    }
+
+    const res = await $fetch<{ role: string }>("/api/admin/verify-token", {
+      headers,
     });
 
-    // 如果成功，说明是超级管理员
-    isLoggedIn.value = true;
-    localStorage.setItem("adminToken", token);
-    localStorage.removeItem("inspectorToken"); // 清除其他的，保持唯一
-    fetchData();
-  } catch (e: any) {
-    // 如果不是管理员，尝试是否是检查员
-    if (e.response?.status === 401) {
-      try {
-        // 尝试调用验证接口（只传令牌，不传 ticketCode 仅仅为了验证身份可行性，或者直接跳转）
-        // 这里我们直接认为可能是检查员，跳转到 scan 页面让其自行验证
-        localStorage.setItem("inspectorToken", token);
-        localStorage.removeItem("adminToken");
-        navigateTo("/admin/scan");
-      } catch (err) {
-        showToast("密码或令牌错误");
-      }
+    // 验证返回的角色是否匹配选择的角色
+    if (loginType.value === "admin" && res.role !== "SUPER_ADMIN") {
+      throw new Error("不是管理员令牌");
+    }
+    if (loginType.value === "inspector" && res.role !== "INSPECTOR") {
+      throw new Error("不是检票员令牌");
+    }
+
+    if (loginType.value === "admin") {
+      isLoggedIn.value = true;
+      localStorage.setItem("adminToken", token);
+      localStorage.removeItem("inspectorToken");
+      fetchData();
     } else {
-      showToast("登录失败");
+      localStorage.setItem("inspectorToken", token);
+      localStorage.removeItem("adminToken");
+      navigateTo("/admin/scan");
+    }
+  } catch (e: any) {
+    if (e.response?.status === 401) {
+      showToast("令牌无效");
+    } else {
+      showToast(e.message || "令牌无效");
     }
   }
 };
@@ -249,7 +263,7 @@ const fetchConfig = async () => {
     ];
   } catch (e: any) {
     if (e.response?.status === 401) {
-      showToast("密码错误");
+      showToast("令牌错误");
       logout();
     } else {
       showToast("获取配置失败");
@@ -275,7 +289,7 @@ const fetchParticipants = async () => {
     participants.value = res;
   } catch (e: any) {
     if (e.response?.status === 401) {
-      showToast("密码错误");
+      showToast("令牌错误");
       logout();
     }
   }
@@ -704,15 +718,30 @@ onUnmounted(() => {
   <div class="admin-page">
     <div v-if="!isLoggedIn" class="login-container">
       <van-cell-group inset>
+        <van-field label="登录身份">
+          <template #input>
+            <van-radio-group v-model="loginType" direction="horizontal">
+              <van-radio name="admin">管理员</van-radio>
+              <van-radio name="inspector">检票员</van-radio>
+            </van-radio-group>
+          </template>
+        </van-field>
         <van-field
           v-model="password"
           type="password"
-          label="登录凭证"
-          placeholder="请输入密码或令牌"
+          label="令牌"
+          placeholder="请输入令牌"
+          clearable
           @keyup.enter="handleLogin"
         />
       </van-cell-group>
-      <van-button type="primary" block round @click="handleLogin">
+      <van-button
+        type="primary"
+        block
+        round
+        @click="handleLogin"
+        style="margin-top: 20px"
+      >
         登录
       </van-button>
     </div>
