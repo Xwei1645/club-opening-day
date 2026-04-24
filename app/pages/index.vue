@@ -81,6 +81,8 @@ const showRebindPopup = ref(false);
 const rebindRecoverCode = ref("");
 const rebinding = ref(false);
 
+const showConfetti = ref(false);
+
 let eventSource: any = null;
 
 const setupSSE = (ticketCode: string) => {
@@ -360,6 +362,12 @@ const fetchResult = async () => {
       if (res.ticket.status === "VALID") {
         setupSSE(res.ticket.ticketCode);
       }
+
+      const confettiKey = `winConfettiShown_${res.recoverCode}`;
+      if (!localStorage.getItem(confettiKey)) {
+        showConfetti.value = true;
+        localStorage.setItem(confettiKey, "true");
+      }
     }
   } catch (e) {
     console.error("获取结果失败", e);
@@ -490,6 +498,7 @@ const handleSubmit = async () => {
 
 <template>
   <div class="page-container">
+    <ConfettiAnimation v-if="showConfetti" />
     <div v-if="loading" class="loading-container">
       <van-loading size="24px">加载中...</van-loading>
     </div>
