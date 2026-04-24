@@ -427,7 +427,7 @@ onUnmounted(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: #fff;
+  background: #000;
   margin: 12px;
   border-radius: 16px;
 }
@@ -436,6 +436,7 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   opacity: 0;
   transition: opacity 0.3s;
 
@@ -558,6 +559,7 @@ onUnmounted(() => {
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
 
   .van-icon {
     font-size: 24px;
