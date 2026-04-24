@@ -1305,7 +1305,7 @@ onUnmounted(() => {
 
       <van-dialog
         v-model:show="showAddInspectorModal"
-        title="新增/修改检票员"
+        title="新增检票员"
         show-cancel-button
         @confirm="addInspector"
       >
