@@ -1,5 +1,5 @@
 import { defineEventHandler, readBody, createError } from "h3";
-import { prisma } from "../../utils/prisma";
+import { prisma } from "../../../utils/prisma";
 
 export default defineEventHandler(async (event) => {
     if (event.context.admin?.role !== "SUPER_ADMIN") {
