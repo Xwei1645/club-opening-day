@@ -29,8 +29,26 @@ const showResult = ref(false);
 const resultStatus = ref<"success" | "used" | "expired" | "invalid">("invalid");
 const resultMessage = ref("");
 const resultParticipant = ref<{ name: string; school: string } | null>(null);
-const scanRecords = ref<ScanRecord[]>([]);
+const scanRecords = ref<any[]>([]);
 const showRecords = ref(false);
+
+const fetchRecords = async () => {
+  try {
+    const res = await $fetch<any[]>("/api/admin/scan-logs", {
+      headers: getAuthHeaders(),
+      params: { limit: 200 },
+    });
+    scanRecords.value = res.map((item) => ({
+      code: item.ticketCode,
+      status: item.result.toLowerCase(),
+      time: new Date(item.scannedAt).toLocaleTimeString(),
+      name: item.participant?.name,
+      school: item.participant?.school,
+    }));
+  } catch (e) {
+    console.error("Fetch scan logs failed", e);
+  }
+};
 
 let videoElement: HTMLVideoElement | null = null;
 let canvasElement: HTMLCanvasElement | null = null;
@@ -41,7 +59,7 @@ let lastScannedCode = "";
 let lastScanTime = 0;
 let resultTimeout: ReturnType<typeof setTimeout> | null = null;
 
-const getAuthHeaders = () => {
+const getAuthHeaders = (): Record<string, string> => {
   const adminToken = localStorage.getItem("adminToken");
   const inspectorToken = localStorage.getItem("inspectorToken");
 
@@ -102,22 +120,11 @@ const verifyTicket = async (code: string) => {
         res.participant,
       );
     }
-
-    scanRecords.value.unshift({
-      code,
-      status: res.ok ? "success" : res.status,
-      time: new Date().toLocaleTimeString(),
-      name: res.participant?.name,
-      school: res.participant?.school,
-    });
+    
+    await fetchRecords();
   } catch (e) {
     showResultPopup("invalid", "无效门票");
-
-    scanRecords.value.unshift({
-      code,
-      status: "invalid",
-      time: new Date().toLocaleTimeString(),
-    });
+    await fetchRecords();
   }
 };
 
@@ -205,7 +212,8 @@ const handleManualInput = () => {
   manualCode.value = "";
 };
 
-const openRecords = () => {
+const openRecords = async () => {
+  await fetchRecords();
   showRecords.value = true;
 };
 
@@ -234,6 +242,8 @@ onMounted(() => {
   const inspectorToken = localStorage.getItem("inspectorToken");
   if (!adminToken && !inspectorToken) {
     navigateTo("/admin");
+  } else {
+    fetchRecords();
   }
 });
 

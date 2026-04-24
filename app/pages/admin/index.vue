@@ -77,6 +77,7 @@ const participants = ref<Participant[]>([]);
 const winners = ref<Winner[]>([]);
 const blacklist = ref<BlacklistItem[]>([]);
 const inspectors = ref<Inspector[]>([]);
+const scanLogs = ref<any[]>([]);
 const onlineCount = ref(0);
 
 const showDatePicker = ref(false);
@@ -88,6 +89,7 @@ const showWinnersModal = ref(false);
 const showBlacklistModal = ref(false);
 const showInspectorsModal = ref(false);
 const showAddInspectorModal = ref(false);
+const showScanLogsModal = ref(false);
 const expandedParticipant = ref<string | null>(null);
 const expandedBlacklist = ref<Set<string>>(new Set());
 
@@ -160,33 +162,40 @@ const formatTicketCode = (code: string) => {
   return `${code.slice(0, 4)} ${code.slice(4)}`;
 };
 
-const loginType = ref<"admin" | "inspector">("admin");
-
 const handleLogin = async () => {
   if (!password.value.trim()) {
-    showToast("请输入令牌");
+    showToast("请输入密码或令牌");
     return;
   }
 
   const token = password.value.trim();
 
-  if (loginType.value === "admin") {
-    try {
-      await $fetch("/api/admin/draw-config", {
-        headers: { "x-admin-token": token },
-      });
-      isLoggedIn.value = true;
-      localStorage.setItem("adminToken", token);
-      localStorage.removeItem("inspectorToken");
-      fetchData();
-    } catch (e: any) {
-      showToast("管理员密码错误");
+  try {
+    // 尝试获取配置以验证身份
+    await $fetch("/api/admin/draw-config", {
+      headers: { "x-admin-token": token },
+    });
+
+    // 如果成功，说明是超级管理员
+    isLoggedIn.value = true;
+    localStorage.setItem("adminToken", token);
+    localStorage.removeItem("inspectorToken"); // 清除其他的，保持唯一
+    fetchData();
+  } catch (e: any) {
+    // 如果不是管理员，尝试是否是检查员
+    if (e.response?.status === 401) {
+      try {
+        // 尝试调用验证接口（只传令牌，不传 ticketCode 仅仅为了验证身份可行性，或者直接跳转）
+        // 这里我们直接认为可能是检查员，跳转到 scan 页面让其自行验证
+        localStorage.setItem("inspectorToken", token);
+        localStorage.removeItem("adminToken");
+        navigateTo("/admin/scan");
+      } catch (err) {
+        showToast("密码或令牌错误");
+      }
+    } else {
+      showToast("登录失败");
     }
-  } else {
-    // 检票员登录逻辑：直接保存并跳转，由 scan 页面发起请求时通过中间件验证
-    localStorage.setItem("inspectorToken", token);
-    localStorage.removeItem("adminToken");
-    navigateTo("/admin/scan");
   }
 };
 
@@ -556,13 +565,30 @@ const fetchInspectors = async () => {
     });
     inspectors.value = res;
   } catch (e: any) {
-    showToast("获取检查员失败");
+    showToast("获取检票员失败");
+  }
+};
+
+const fetchScanLogs = async () => {
+  try {
+    const res = await $fetch<any[]>("/api/admin/scan-logs", {
+      headers: getAuthHeaders(),
+      params: { limit: 200 },
+    });
+    scanLogs.value = res;
+  } catch (e: any) {
+    showToast("获取检票记录失败");
   }
 };
 
 const openInspectorsModal = async () => {
   await fetchInspectors();
   showInspectorsModal.value = true;
+};
+
+const openScanLogsModal = async () => {
+  await fetchScanLogs();
+  showScanLogsModal.value = true;
 };
 
 const addInspector = async () => {
@@ -588,8 +614,8 @@ const addInspector = async () => {
 const deleteInspector = async (inspector: Inspector) => {
   try {
     await showConfirmDialog({
-      title: "删除检查员",
-      message: `确定删除检查员 ${inspector.name} 吗？`,
+      title: "删除检票员",
+      message: `确定删除检票员 ${inspector.name} 吗？`,
     });
     await $fetch("/api/admin/inspectors/delete", {
       method: "POST",
@@ -678,23 +704,15 @@ onUnmounted(() => {
   <div class="admin-page">
     <div v-if="!isLoggedIn" class="login-container">
       <van-cell-group inset>
-        <van-field label="登录身份">
-          <template #input>
-            <van-radio-group v-model="loginType" direction="horizontal">
-              <van-radio name="admin">管理员</van-radio>
-              <van-radio name="inspector">检票员</van-radio>
-            </van-radio-group>
-          </template>
-        </van-field>
         <van-field
           v-model="password"
-          :type="loginType === 'admin' ? 'password' : 'text'"
-          label="令牌"
-          placeholder="请输入令牌"
+          type="password"
+          label="登录凭证"
+          placeholder="请输入密码或令牌"
           @keyup.enter="handleLogin"
         />
       </van-cell-group>
-      <van-button type="primary" block round @click="handleLogin" style="margin-top: 20px;">
+      <van-button type="primary" block round @click="handleLogin">
         登录
       </van-button>
     </div>
@@ -874,31 +892,26 @@ onUnmounted(() => {
           <div class="admin-card">
             <div class="card-header">
               <van-icon name="manager-o" />
-              <span>检查员管理</span>
+              <span>检票管理</span>
             </div>
             <div class="card-body">
-              <p style="font-size: 13px; color: #666; margin-bottom: 12px">
-                管理可登录扫码端的人员及其令牌。
-              </p>
               <van-button
                 type="default"
                 size="small"
                 block
+                @click="goToScanner"
+              >
+                扫码检票
+              </van-button>
+              <van-button
+                type="default"
+                size="small"
+                block
+                style="margin-top: 8px"
                 @click="openInspectorsModal"
               >
-                管理检查员
+                管理检票员账号
               </van-button>
-            </div>
-          </div>
-
-          <div class="admin-card highlight" @click="goToScanner">
-            <div class="card-header">
-              <van-icon name="scan" />
-              <span>扫码验票</span>
-            </div>
-            <div class="card-body center">
-              <van-icon name="scan" class="big-icon" />
-              <p>点击进入扫码验票界面</p>
             </div>
           </div>
 
@@ -1237,11 +1250,11 @@ onUnmounted(() => {
       >
         <div class="modal-content">
           <div class="modal-header">
-            <h3>检查员管理 ({{ inspectors.length }}人)</h3>
+            <h3>检票员管理 ({{ inspectors.length }}人)</h3>
           </div>
           <div class="modal-body">
             <div v-if="inspectors.length === 0" class="empty-text">
-              暂无检查员
+              暂无检票员
             </div>
             <van-cell-group inset v-else>
               <van-cell
@@ -1271,7 +1284,7 @@ onUnmounted(() => {
               icon="plus"
               @click="showAddInspectorModal = true"
             >
-              新增检查员
+              新增检票员
             </van-button>
             <van-button plain round @click="showInspectorsModal = false">
               关闭
@@ -1282,7 +1295,7 @@ onUnmounted(() => {
 
       <van-dialog
         v-model:show="showAddInspectorModal"
-        title="新增/修改检查员"
+        title="新增/修改检票员"
         show-cancel-button
         @confirm="addInspector"
       >
@@ -1290,7 +1303,7 @@ onUnmounted(() => {
           <van-field
             v-model="newInspector.name"
             label="名称"
-            placeholder="请输入检查员名称"
+            placeholder="请输入检票员名称"
             required
           />
           <van-field
@@ -1300,6 +1313,44 @@ onUnmounted(() => {
             required
           />
         </van-cell-group>
+      </van-dialog>
+      <van-dialog
+        v-model:show="showScanLogsModal"
+        title="全量检票记录"
+        width="90%"
+        :show-confirm-button="false"
+        close-on-click-overlay
+      >
+        <div class="modal-list logs-list" style="max-height: 60vh; overflow-y: auto; padding: 12px;">
+          <div v-if="scanLogs.length === 0" class="empty-text">暂无记录</div>
+          <div
+            v-for="log in scanLogs"
+            :key="log.id"
+            class="log-item"
+            style="border-bottom: 1px solid #eee; padding: 8px 0;"
+          >
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <van-tag :type="log.result === 'SUCCESS' ? 'success' : 'danger'">
+                    {{ log.result }}
+                  </van-tag>
+                  <span style="font-size: 14px; font-weight: 500;">{{ log.participant?.name || '未知' }}</span>
+                </div>
+                <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                  {{ log.participant?.school || '-' }} | {{ log.ticketCode }}
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 11px; color: #999;">{{ new Date(log.scannedAt).toLocaleString() }}</div>
+                <div style="font-size: 11px; color: #666; margin-top: 2px;">操作: {{ log.operator }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 12px;">
+          <van-button block round @click="showScanLogsModal = false">关闭</van-button>
+        </div>
       </van-dialog>
     </template>
   </div>
@@ -1346,7 +1397,11 @@ onUnmounted(() => {
 
     .card-header,
     .card-body {
-      color: #fff;
+      color: #fff !important;
+    }
+
+    .card-header {
+      background: transparent;
     }
 
     .big-icon {
