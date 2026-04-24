@@ -42,12 +42,19 @@ let lastScanTime = 0;
 let resultTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem("adminToken");
-  if (!token) {
-    navigateTo("/admin");
-    return { "x-admin-token": "" };
+  const adminToken = localStorage.getItem("adminToken");
+  const inspectorToken = localStorage.getItem("inspectorToken");
+
+  if (adminToken) {
+    return { "x-admin-token": adminToken };
   }
-  return { "x-admin-token": token };
+
+  if (inspectorToken) {
+    return { "x-inspector-token": inspectorToken };
+  }
+
+  navigateTo("/admin");
+  return {};
 };
 
 const showResultPopup = (
@@ -179,7 +186,13 @@ const stopCamera = () => {
 
 const goBack = () => {
   stopCamera();
-  navigateTo("/admin");
+  if (localStorage.getItem("adminToken")) {
+    navigateTo("/admin");
+  } else {
+    localStorage.removeItem("inspectorToken");
+    localStorage.removeItem("inspectorName");
+    navigateTo("/admin");
+  }
 };
 
 const manualCode = ref("");
@@ -217,8 +230,9 @@ const getStatusText = (status: string) => {
 };
 
 onMounted(() => {
-  const token = localStorage.getItem("adminToken");
-  if (!token) {
+  const adminToken = localStorage.getItem("adminToken");
+  const inspectorToken = localStorage.getItem("inspectorToken");
+  if (!adminToken && !inspectorToken) {
     navigateTo("/admin");
   }
 });

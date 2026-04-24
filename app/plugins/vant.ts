@@ -18,6 +18,8 @@ import {
   Tabs,
   Tag,
   TimePicker,
+  Radio,
+  RadioGroup,
   showToast,
   showSuccessToast,
   showConfirmDialog,
@@ -42,6 +44,8 @@ export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.use(Tabs);
   nuxtApp.vueApp.use(Tag);
   nuxtApp.vueApp.use(TimePicker);
+  nuxtApp.vueApp.use(Radio);
+  nuxtApp.vueApp.use(RadioGroup);
 });
 
 export { showToast, showSuccessToast, showConfirmDialog };

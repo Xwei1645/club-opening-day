@@ -160,33 +160,40 @@ const formatTicketCode = (code: string) => {
   return `${code.slice(0, 4)} ${code.slice(4)}`;
 };
 
-const loginType = ref<"admin" | "inspector">("admin");
-
 const handleLogin = async () => {
   if (!password.value.trim()) {
-    showToast("请输入令牌");
+    showToast("请输入密码或令牌");
     return;
   }
 
   const token = password.value.trim();
 
-  if (loginType.value === "admin") {
-    try {
-      await $fetch("/api/admin/draw-config", {
-        headers: { "x-admin-token": token },
-      });
-      isLoggedIn.value = true;
-      localStorage.setItem("adminToken", token);
-      localStorage.removeItem("inspectorToken");
-      fetchData();
-    } catch (e: any) {
-      showToast("管理员密码错误");
+  try {
+    // 尝试获取配置以验证身份
+    await $fetch("/api/admin/draw-config", {
+      headers: { "x-admin-token": token },
+    });
+
+    // 如果成功，说明是超级管理员
+    isLoggedIn.value = true;
+    localStorage.setItem("adminToken", token);
+    localStorage.removeItem("inspectorToken"); // 清除其他的，保持唯一
+    fetchData();
+  } catch (e: any) {
+    // 如果不是管理员，尝试是否是检查员
+    if (e.response?.status === 401) {
+      try {
+        // 尝试调用验证接口（只传令牌，不传 ticketCode 仅仅为了验证身份可行性，或者直接跳转）
+        // 这里我们直接认为可能是检查员，跳转到 scan 页面让其自行验证
+        localStorage.setItem("inspectorToken", token);
+        localStorage.removeItem("adminToken");
+        navigateTo("/admin/scan");
+      } catch (err) {
+        showToast("密码或令牌错误");
+      }
+    } else {
+      showToast("登录失败");
     }
-  } else {
-    // 检票员登录逻辑：直接保存并跳转，由 scan 页面发起请求时通过中间件验证
-    localStorage.setItem("inspectorToken", token);
-    localStorage.removeItem("adminToken");
-    navigateTo("/admin/scan");
   }
 };
 
@@ -678,23 +685,15 @@ onUnmounted(() => {
   <div class="admin-page">
     <div v-if="!isLoggedIn" class="login-container">
       <van-cell-group inset>
-        <van-field label="登录身份">
-          <template #input>
-            <van-radio-group v-model="loginType" direction="horizontal">
-              <van-radio name="admin">管理员</van-radio>
-              <van-radio name="inspector">检票员</van-radio>
-            </van-radio-group>
-          </template>
-        </van-field>
         <van-field
           v-model="password"
-          :type="loginType === 'admin' ? 'password' : 'text'"
-          label="令牌"
-          placeholder="请输入令牌"
+          type="password"
+          label="登录凭证"
+          placeholder="请输入密码或令牌"
           @keyup.enter="handleLogin"
         />
       </van-cell-group>
-      <van-button type="primary" block round @click="handleLogin" style="margin-top: 20px;">
+      <van-button type="primary" block round @click="handleLogin">
         登录
       </van-button>
     </div>
