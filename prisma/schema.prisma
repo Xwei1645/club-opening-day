@@ -86,16 +86,28 @@ model Ticket {
 }
 
 model ScanLog {
-  id        String     @id @default(cuid())
-  ticketId  String?
-  ticket    Ticket?    @relation(fields: [ticketId], references: [id], onDelete: SetNull)
-  result    ScanResult
-  operator  String?
-  ip        String
-  userAgent String
-  scannedAt DateTime   @default(now())
+  id          String      @id @default(cuid())
+  ticketId    String?
+  ticket      Ticket?     @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  result      ScanResult
+  inspectorId String?
+  inspector   Inspector?  @relation(fields: [inspectorId], references: [id], onDelete: SetNull)
+  operator    String?
+  ip          String
+  userAgent   String
+  scannedAt   DateTime    @default(now())
 
   @@index([scannedAt])
+}
+
+model Inspector {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  token     String    @unique
+  isActive  Boolean   @default(true)
+  scanLogs  ScanLog[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model AdminUser {

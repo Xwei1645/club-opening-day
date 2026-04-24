@@ -15,9 +15,14 @@ const schema = z.object({
 });
 
 export default defineEventHandler(async (event) => {
-  const { ticketCode, operator } = schema.parse(await readBody(event));
+  const body = await readBody(event);
+  const { ticketCode, operator: bodyOperator } = schema.parse(body);
   const { ip, userAgent } = requestMeta(event);
   await syncExpiredTickets();
+
+  const authAdmin = event.context.admin;
+  const inspectorId = authAdmin?.role === "INSPECTOR" ? authAdmin.id : null;
+  const operator = authAdmin?.name || bodyOperator || "System";
 
   const ticket = await prisma.ticket.findUnique({
     where: { ticketCode },
@@ -29,6 +34,7 @@ export default defineEventHandler(async (event) => {
       data: {
         ticketId: null,
         result: "INVALID",
+        inspectorId,
         operator,
         ip,
         userAgent,
@@ -47,6 +53,7 @@ export default defineEventHandler(async (event) => {
       data: {
         ticketId: ticket.id,
         result: "USED",
+        inspectorId,
         operator,
         ip,
         userAgent,
@@ -64,6 +71,7 @@ export default defineEventHandler(async (event) => {
       data: {
         ticketId: ticket.id,
         result: "EXPIRED",
+        inspectorId,
         operator,
         ip,
         userAgent,
@@ -88,6 +96,7 @@ export default defineEventHandler(async (event) => {
       data: {
         ticketId: ticket.id,
         result: "USED",
+        inspectorId,
         operator,
         ip,
         userAgent,
@@ -100,6 +109,7 @@ export default defineEventHandler(async (event) => {
     data: {
       ticketId: ticket.id,
       result: "SUCCESS",
+      inspectorId,
       operator,
       ip,
       userAgent,
