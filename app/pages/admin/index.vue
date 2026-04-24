@@ -80,7 +80,6 @@ const participants = ref<Participant[]>([]);
 const winners = ref<Winner[]>([]);
 const blacklist = ref<BlacklistItem[]>([]);
 const inspectors = ref<Inspector[]>([]);
-const scanLogs = ref<any[]>([]);
 const onlineCount = ref(0);
 
 const showDatePicker = ref(false);
@@ -92,7 +91,6 @@ const showWinnersModal = ref(false);
 const showBlacklistModal = ref(false);
 const showInspectorsModal = ref(false);
 const showAddInspectorModal = ref(false);
-const showScanLogsModal = ref(false);
 const expandedParticipant = ref<string | null>(null);
 const expandedBlacklist = ref<Set<string>>(new Set());
 
@@ -583,31 +581,14 @@ const fetchInspectors = async () => {
   }
 };
 
-const fetchScanLogs = async () => {
-  try {
-    const res = await $fetch<any[]>("/api/admin/scan-logs", {
-      headers: getAuthHeaders(),
-      params: { limit: 200 },
-    });
-    scanLogs.value = res;
-  } catch (e: any) {
-    showToast("获取检票记录失败");
-  }
-};
-
 const openInspectorsModal = async () => {
   await fetchInspectors();
   showInspectorsModal.value = true;
 };
 
-const openScanLogsModal = async () => {
-  await fetchScanLogs();
-  showScanLogsModal.value = true;
-};
-
 const addInspector = async () => {
   if (!newInspector.value.name || !newInspector.value.token) {
-    showToast("请填写名称和令牌");
+    showToast("请填写姓名和令牌");
     return;
   }
   try {
@@ -1331,8 +1312,8 @@ onUnmounted(() => {
         <van-cell-group inset style="margin: 16px 0">
           <van-field
             v-model="newInspector.name"
-            label="名称"
-            placeholder="请输入检票员名称"
+            label="姓名"
+            placeholder="请输入检票员姓名"
             required
           />
           <van-field
@@ -1342,44 +1323,6 @@ onUnmounted(() => {
             required
           />
         </van-cell-group>
-      </van-dialog>
-      <van-dialog
-        v-model:show="showScanLogsModal"
-        title="全量检票记录"
-        width="90%"
-        :show-confirm-button="false"
-        close-on-click-overlay
-      >
-        <div class="modal-list logs-list" style="max-height: 60vh; overflow-y: auto; padding: 12px;">
-          <div v-if="scanLogs.length === 0" class="empty-text">暂无记录</div>
-          <div
-            v-for="log in scanLogs"
-            :key="log.id"
-            class="log-item"
-            style="border-bottom: 1px solid #eee; padding: 8px 0;"
-          >
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-              <div>
-                <div style="display: flex; align-items: center; gap: 4px;">
-                  <van-tag :type="log.result === 'SUCCESS' ? 'success' : 'danger'">
-                    {{ log.result }}
-                  </van-tag>
-                  <span style="font-size: 14px; font-weight: 500;">{{ log.participant?.name || '未知' }}</span>
-                </div>
-                <div style="font-size: 12px; color: #666; margin-top: 4px;">
-                  {{ log.participant?.school || '-' }} | {{ log.ticketCode }}
-                </div>
-              </div>
-              <div style="text-align: right;">
-                <div style="font-size: 11px; color: #999;">{{ new Date(log.scannedAt).toLocaleString() }}</div>
-                <div style="font-size: 11px; color: #666; margin-top: 2px;">操作: {{ log.operator }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div style="padding: 12px;">
-          <van-button block round @click="showScanLogsModal = false">关闭</van-button>
-        </div>
       </van-dialog>
     </template>
   </div>
