@@ -42,6 +42,10 @@ interface Winner {
   name: string;
   school: string;
   createdAt: string;
+  ip: string;
+  userAgent: string;
+  fingerprintHash: string;
+  recoverCode: string | null;
   ticket: {
     ticketCode: string;
     status: string;
@@ -92,6 +96,7 @@ const showBlacklistModal = ref(false);
 const showInspectorsModal = ref(false);
 const showAddInspectorModal = ref(false);
 const expandedParticipant = ref<string | null>(null);
+const expandedWinner = ref<string | null>(null);
 const expandedBlacklist = ref<Set<string>>(new Set());
 
 const newInspector = ref({
@@ -576,7 +581,12 @@ const goToScanner = () => {
 
 const openWinnersModal = async () => {
   await fetchWinners();
+  expandedWinner.value = null;
   showWinnersModal.value = true;
+};
+
+const toggleWinnerExpand = (id: string) => {
+  expandedWinner.value = expandedWinner.value === id ? null : id;
 };
 
 const fetchInspectors = async () => {
@@ -676,6 +686,15 @@ const copyRecoverCode = async (code: string) => {
   try {
     await navigator.clipboard.writeText(code);
     showSuccessToast("已复制找回码");
+  } catch (e) {
+    showToast("复制失败");
+  }
+};
+
+const copyTicketCode = async (code: string) => {
+  try {
+    await navigator.clipboard.writeText(code);
+    showSuccessToast("已复制门票码");
   } catch (e) {
     showToast("复制失败");
   }
@@ -1107,9 +1126,12 @@ onUnmounted(() => {
                 </div>
                 <div v-if="p.ticket" class="detail-row">
                   <span class="detail-label">门票码</span>
-                  <span class="detail-value">{{
-                    formatTicketCode(p.ticket.ticketCode)
-                  }}</span>
+                  <span
+                    class="detail-value ticket-code copyable"
+                    @click="copyTicketCode(p.ticket.ticketCode)"
+                  >
+                    {{ formatTicketCode(p.ticket.ticketCode) }}
+                  </span>
                 </div>
                 <div v-if="p.ticket" class="detail-row">
                   <span class="detail-label">门票状态</span>
@@ -1179,22 +1201,79 @@ onUnmounted(() => {
             />
           </div>
           <div class="modal-body">
-            <van-cell
+            <div
               v-for="w in filteredWinners"
               :key="w.id"
-              :title="w.name"
-              :label="w.school"
+              class="participant-item"
+              :class="{ expanded: expandedWinner === w.id }"
             >
-              <template #value>
-                <van-tag v-if="w.ticket?.status === 'VALID'" type="success">
-                  门票有效
-                </van-tag>
-                <van-tag v-else-if="w.ticket?.status === 'USED'" type="warning">
-                  已使用
-                </van-tag>
-                <van-tag v-else type="default">已过期</van-tag>
-              </template>
-            </van-cell>
+              <div class="item-main" @click="toggleWinnerExpand(w.id)">
+                <div class="item-info">
+                  <div class="item-name">{{ w.name }}</div>
+                  <div class="item-school">{{ w.school }}</div>
+                </div>
+                <div class="item-right">
+                  <van-tag v-if="w.ticket?.status === 'VALID'" type="success">
+                    门票有效
+                  </van-tag>
+                  <van-tag v-else-if="w.ticket?.status === 'USED'" type="warning">
+                    已使用
+                  </van-tag>
+                  <van-tag v-else type="default">已过期</van-tag>
+                  <van-icon
+                    :name="expandedWinner === w.id ? 'arrow-up' : 'arrow-down'"
+                    class="expand-icon"
+                  />
+                </div>
+              </div>
+
+              <div v-if="expandedWinner === w.id" class="item-detail">
+                <div class="detail-row">
+                  <span class="detail-label">报名时间</span>
+                  <span class="detail-value">{{
+                    formatDateTime(w.createdAt)
+                  }}</span>
+                </div>
+                <div v-if="w.recoverCode" class="detail-row">
+                  <span class="detail-label">找回码</span>
+                  <span
+                    class="detail-value recover-code copyable"
+                    @click="copyRecoverCode(w.recoverCode)"
+                  >
+                    {{ w.recoverCode }}
+                  </span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">指纹</span>
+                  <span class="detail-value fingerprint">{{
+                    w.fingerprintHash
+                  }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">IP地址</span>
+                  <span class="detail-value">{{ w.ip }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">UA</span>
+                  <span class="detail-value">{{ w.userAgent }}</span>
+                </div>
+                <div v-if="w.ticket" class="detail-row">
+                  <span class="detail-label">门票码</span>
+                  <span
+                    class="detail-value ticket-code copyable"
+                    @click="copyTicketCode(w.ticket.ticketCode)"
+                  >
+                    {{ formatTicketCode(w.ticket.ticketCode) }}
+                  </span>
+                </div>
+                <div v-if="w.ticket?.usedAt" class="detail-row">
+                  <span class="detail-label">使用时间</span>
+                  <span class="detail-value">{{
+                    formatDateTime(w.ticket.usedAt)
+                  }}</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <van-button block round @click="showWinnersModal = false">
@@ -1737,11 +1816,13 @@ onUnmounted(() => {
         word-break: break-all;
 
         &.fingerprint,
-        &.recover-code {
+        &.recover-code,
+        &.ticket-code {
           font-family: monospace;
         }
 
-        &.recover-code {
+        &.recover-code,
+        &.ticket-code {
           cursor: pointer;
 
           &:hover {
