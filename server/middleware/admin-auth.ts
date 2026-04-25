@@ -6,7 +6,6 @@ export default defineEventHandler(async (event) => {
     return;
   }
 
-  // 1. 检查超级管理员 Token
   const config = useRuntimeConfig();
   const adminToken = config.adminToken;
   if (!adminToken) {
@@ -27,7 +26,6 @@ export default defineEventHandler(async (event) => {
     return;
   }
 
-  // 2. 检查普通检票员 Token
   const isVerifyPath = event.path.startsWith("/api/admin/verify");
   const xInspectorToken = getRequestHeader(event, "x-inspector-token") || "";
 
@@ -46,7 +44,6 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // 3. 都不匹配则报错
   throw createError({
     statusCode: 401,
     statusMessage: "Unauthorized access.",

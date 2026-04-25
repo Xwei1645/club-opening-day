@@ -172,7 +172,6 @@ const handleLogin = async () => {
   const token = password.value.trim();
 
   try {
-    // 统一使用 verify-token 接口验证
     const headers: Record<string, string> = {};
     if (loginType.value === "admin") {
       headers["x-admin-token"] = token;
@@ -184,7 +183,6 @@ const handleLogin = async () => {
       headers,
     });
 
-    // 验证返回的角色是否匹配选择的角色
     if (loginType.value === "admin" && res.role !== "SUPER_ADMIN") {
       throw new Error("不是管理员令牌");
     }
