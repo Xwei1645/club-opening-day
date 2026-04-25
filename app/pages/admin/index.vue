@@ -99,6 +99,7 @@ const newInspector = ref({
   token: "",
 });
 const participantSearch = ref("");
+const winnerSearch = ref("");
 const showDuplicates = ref(false);
 
 const configForm = ref({
@@ -131,6 +132,16 @@ const expireTime = ref([
   String(now.getHours()).padStart(2, "0"),
   String(now.getMinutes()).padStart(2, "0"),
 ]);
+
+const filteredWinners = computed(() => {
+  if (!winnerSearch.value.trim()) return winners.value;
+  const q = winnerSearch.value.trim().toLowerCase();
+  return winners.value.filter(
+    (w) =>
+      w.name.toLowerCase().includes(q) ||
+      w.school.toLowerCase().includes(q),
+  );
+});
 
 const drawStatusText = computed(() => {
   if (!config.value) return "未知";
@@ -1160,9 +1171,16 @@ onUnmounted(() => {
           <div class="modal-header">
             <h3>中奖者列表 ({{ winners.length }}人)</h3>
           </div>
+          <div class="modal-search">
+            <van-search
+              v-model="winnerSearch"
+              placeholder="搜索姓名或学校"
+              round
+            />
+          </div>
           <div class="modal-body">
             <van-cell
-              v-for="w in winners"
+              v-for="w in filteredWinners"
               :key="w.id"
               :title="w.name"
               :label="w.school"
@@ -1566,6 +1584,11 @@ onUnmounted(() => {
   .van-search {
     padding: 0 12px;
   }
+}
+
+.modal-search {
+  padding: 8px 4px;
+  border-bottom: 1px solid #eee;
 }
 
 .modal-body {
