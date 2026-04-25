@@ -47,6 +47,32 @@ function secureShuffle<T>(array: T[]): T[] {
   return result;
 }
 
+function weightedDraw<T>(participants: T[], count: number): T[] {
+  const result: T[] = [];
+  const pool = participants.map((p, index) => {
+    const reverseIndex = participants.length - index;
+    const weight = 1 + (reverseIndex / participants.length) * 0.5;
+    return { item: p, weight };
+  });
+
+  for (let i = 0; i < count && pool.length > 0; i++) {
+    const totalWeight = pool.reduce((sum, p) => sum + p.weight, 0);
+    let random = Math.random() * totalWeight;
+
+    for (let j = 0; j < pool.length; j++) {
+      const entry = pool[j];
+      if (!entry) continue;
+      random -= entry.weight;
+      if (random <= 0) {
+        result.push(entry.item);
+        pool.splice(j, 1);
+        break;
+      }
+    }
+  }
+  return result;
+}
+
 interface DrawResult {
   ok: boolean;
   winnerCount: number;
@@ -81,8 +107,7 @@ export async function executeDraw(tx: any, cfg: any): Promise<DrawResult> {
     cfg.winnerCount - forcedWinners.length,
   );
 
-  const shuffled = secureShuffle(normalParticipants);
-  const normalWinners = shuffled.slice(0, remainingWinnerSlots);
+  const normalWinners = weightedDraw(normalParticipants, remainingWinnerSlots);
   const normalWinnerIds = new Set(normalWinners.map((p: any) => p.id));
 
   const allWinners = [...forcedWinners, ...normalWinners];
