@@ -11,7 +11,7 @@ import { ref, onMounted, onUnmounted } from "vue";
 const props = withDefaults(defineProps<{
   particleCount?: number;
 }>(), {
-  particleCount: 500,
+  particleCount: 1000,
 });
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
@@ -74,7 +74,7 @@ const createParticle = (canvasWidth: number, canvasHeight: number): Particle => 
     h,
     color: COLORS[Math.floor(Math.random() * COLORS.length)]!,
     vx: (Math.random() - 0.5) * 2,
-    vy: 1 + Math.random() * 0.7,
+    vy: 2 + Math.random() * 1.4,
     rotation: Math.random() * Math.PI * 2,
     rotationSpeed: (Math.random() - 0.5) * 0.15,
     tiltX: Math.random() * Math.PI * 2,
