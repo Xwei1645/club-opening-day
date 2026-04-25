@@ -74,7 +74,7 @@ const createParticle = (canvasWidth: number, canvasHeight: number): Particle => 
     h,
     color: COLORS[Math.floor(Math.random() * COLORS.length)]!,
     vx: (Math.random() - 0.5) * 2,
-    vy: 4 + Math.random() * 2.8,
+    vy: 2 + Math.random() * 1.4,
     rotation: Math.random() * Math.PI * 2,
     rotationSpeed: (Math.random() - 0.5) * 0.15,
     tiltX: Math.random() * Math.PI * 2,
