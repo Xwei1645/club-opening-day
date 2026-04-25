@@ -150,12 +150,11 @@ export async function executeDraw(tx: any, cfg: any): Promise<DrawResult> {
 export async function runDrawIfNeeded() {
   const cfg = await ensureDrawConfig();
   const now = new Date();
-  
+
   if (now < cfg.drawAt) {
     return { executed: false };
   }
 
-  // 如果已经时间到了且状态是 PENDING，则执行开奖并公开
   if (cfg.drawStatus === "PENDING") {
     return prisma.$transaction(async (tx: any) => {
       const current = await tx.drawConfig.findUnique({ where: { id: 1 } });
@@ -178,7 +177,6 @@ export async function runDrawIfNeeded() {
     });
   }
 
-  // 如果时间到了且已经开过奖 (DONE) 但还没公开 (HIDDEN)，则执行公开
   if (cfg.drawStatus === "DONE" && cfg.publishStatus === "HIDDEN") {
     await prisma.drawConfig.update({
       where: { id: 1 },
