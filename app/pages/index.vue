@@ -82,6 +82,7 @@ const showRebindPopup = ref(false);
 const rebindRecoverCode = ref("");
 const rebinding = ref(false);
 
+const isFirstShow = ref(false);
 const showConfetti = ref(false);
 const showJoinGroupPopup = ref(false);
 const confirmJoining = ref(false);
@@ -333,7 +334,6 @@ const handleConfirmJoinGroup = async () => {
     if (resultData.value) {
       resultData.value.hasJoinedGroup = true;
     }
-    fireConfetti();
   } catch (e: any) {
     showToast(e.data?.statusMessage || "确认失败");
   } finally {
@@ -343,7 +343,6 @@ const handleConfirmJoinGroup = async () => {
 
 const handleNextTimeJoinGroup = () => {
   showJoinGroupPopup.value = false;
-  fireConfetti();
 };
 
 const canAgree = computed(() => countdown.value <= 0 && scrolledToBottom.value);
@@ -399,13 +398,20 @@ const fetchResult = async () => {
       }
 
       if (!res.hasJoinedGroup && config.value?.wechatQrCodeUrl) {
+        const confettiKey = `winConfettiShown_${res.recoverCode}`;
+        if (!localStorage.getItem(confettiKey)) {
+          isFirstShow.value = true;
+          fireConfetti();
+          localStorage.setItem(confettiKey, "true");
+        }
         showJoinGroupPopup.value = true;
       } else {
         const confettiKey = `winConfettiShown_${res.recoverCode}`;
         if (!localStorage.getItem(confettiKey)) {
-          showConfetti.value = true;
+          fireConfetti();
           localStorage.setItem(confettiKey, "true");
         }
+        showJoinGroupPopup.value = false;
       }
     }
   } catch (e) {
@@ -876,13 +882,12 @@ const handleSubmit = async () => {
       :style="{ padding: '24px', width: '85%', maxWidth: '360px' }"
     >
       <div class="join-group-popup">
-        <h4 class="popup-title">恭喜中奖！🎉</h4>
-        <p class="popup-desc">请扫描下方二维码加入官方观众微信群，获取活动最新动态与入场指引。</p>
+        <h4 class="popup-title">{{ isFirstShow ? '恭喜中奖！🎉' : '请及时加入观众群' }}</h4>
+        <p class="popup-desc">请扫描下方二维码加入观众微信群，获取活动最新动态与入场指引。加群后请点击下方按钮确认。</p>
         <div class="wechat-qr">
           <img v-if="wechatQrDataUrl" :src="wechatQrDataUrl" alt="微信群二维码" />
           <van-loading v-else size="20px" vertical>加载二维码...</van-loading>
         </div>
-        <p class="popup-hint">请加群后点击下方按钮确认</p>
         <div class="rebind-actions">
           <van-button block round @click="handleNextTimeJoinGroup">下次再说</van-button>
           <van-button
@@ -1664,11 +1669,8 @@ const handleSubmit = async () => {
 
   .wechat-qr {
     margin: 16px auto;
-    width: 180px;
-    height: 180px;
-    padding: 10px;
-    background: #f9f9f9;
-    border-radius: 8px;
+    width: 200px;
+    height: 200px;
     display: flex;
     align-items: center;
     justify-content: center;

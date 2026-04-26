@@ -11,7 +11,7 @@ import { ref, onMounted, onUnmounted } from "vue";
 const props = withDefaults(defineProps<{
   particleCount?: number;
 }>(), {
-  particleCount: 1000,
+  particleCount: 800,
 });
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
