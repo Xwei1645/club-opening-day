@@ -98,6 +98,7 @@ const showWinnersModal = ref(false);
 const showBlacklistModal = ref(false);
 const showInspectorsModal = ref(false);
 const showAddInspectorModal = ref(false);
+const showAddParticipantModal = ref(false);
 const expandedParticipant = ref<string | null>(null);
 const expandedWinner = ref<string | null>(null);
 const expandedBlacklist = ref<Set<string>>(new Set());
@@ -105,6 +106,10 @@ const expandedBlacklist = ref<Set<string>>(new Set());
 const newInspector = ref({
   name: "",
   token: "",
+});
+const newParticipant = ref({
+  name: "",
+  school: "",
 });
 const participantSearch = ref("");
 const winnerSearch = ref("");
@@ -351,6 +356,29 @@ const fetchData = async () => {
   loading.value = true;
   await Promise.all([fetchConfig(), fetchParticipants(), fetchOnlineCount()]);
   loading.value = false;
+};
+
+const addParticipantManually = async () => {
+  if (!newParticipant.value.name || !newParticipant.value.school) {
+    showToast("请填写完整信息");
+    return;
+  }
+  loading.value = true;
+  try {
+    await $fetch("/api/admin/participant/add", {
+      method: "POST",
+      body: newParticipant.value,
+      headers: getAuthHeaders(),
+    });
+    showSuccessToast("添加成功");
+    showAddParticipantModal.value = false;
+    newParticipant.value = { name: "", school: "" };
+    await Promise.all([fetchParticipants(), fetchWinners()]);
+  } catch (e: any) {
+    showToast(e.response?._data?.statusMessage || "添加失败");
+  } finally {
+    loading.value = false;
+  }
 };
 
 const updateConfig = async () => {
@@ -1214,6 +1242,14 @@ onUnmounted(() => {
         <div class="modal-content">
           <div class="modal-header">
             <h3>中奖者列表 ({{ winners.length }}人)</h3>
+            <van-button
+              type="primary"
+              size="small"
+              icon="plus"
+              @click="showAddParticipantModal = true"
+            >
+              新增中奖者
+            </van-button>
           </div>
           <div class="modal-search">
             <van-search
@@ -1452,6 +1488,32 @@ onUnmounted(() => {
             label="令牌"
             placeholder="请输入登录令牌"
             required
+          />
+        </van-cell-group>
+      </van-dialog>
+
+      <van-dialog
+        v-model:show="showAddParticipantModal"
+        title="新增中奖者"
+        show-cancel-button
+        @confirm="addParticipantManually"
+        :before-close="(action) => (action === 'confirm' ? false : true)"
+        @cancel="showAddParticipantModal = false"
+      >
+        <van-cell-group inset style="margin: 16px 0">
+          <van-field
+            v-model="newParticipant.name"
+            label="姓名"
+            placeholder="请输入姓名"
+            required
+            :rules="[{ required: true, message: '请填写姓名' }]"
+          />
+          <van-field
+            v-model="newParticipant.school"
+            label="学校"
+            placeholder="请输入学校"
+            required
+            :rules="[{ required: true, message: '请填写学校' }]"
           />
         </van-cell-group>
       </van-dialog>
