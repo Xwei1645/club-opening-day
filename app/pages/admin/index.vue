@@ -46,6 +46,8 @@ interface Winner {
   userAgent: string;
   fingerprintHash: string;
   recoverCode: string | null;
+  hasJoinedGroup: boolean;
+  joinedAt: string | null;
   ticket: {
     ticketCode: string;
     status: string;
@@ -85,6 +87,7 @@ const winners = ref<Winner[]>([]);
 const blacklist = ref<BlacklistItem[]>([]);
 const inspectors = ref<Inspector[]>([]);
 const onlineCount = ref(0);
+const winnerConfirmCount = ref(0);
 
 const showDatePicker = ref(false);
 const showTimePicker = ref(false);
@@ -105,6 +108,7 @@ const newInspector = ref({
 });
 const participantSearch = ref("");
 const winnerSearch = ref("");
+const winnerFilterJoined = ref<"all" | "joined" | "unjoined">("all");
 const showDuplicates = ref(false);
 
 const configForm = ref({
@@ -139,9 +143,17 @@ const expireTime = ref([
 ]);
 
 const filteredWinners = computed(() => {
-  if (!winnerSearch.value.trim()) return winners.value;
+  let list = winners.value;
+
+  if (winnerFilterJoined.value === "joined") {
+    list = list.filter((w) => w.hasJoinedGroup);
+  } else if (winnerFilterJoined.value === "unjoined") {
+    list = list.filter((w) => !w.hasJoinedGroup);
+  }
+
+  if (!winnerSearch.value.trim()) return list;
   const q = winnerSearch.value.trim().toLowerCase();
-  return winners.value.filter(
+  return list.filter(
     (w) =>
       w.name.toLowerCase().includes(q) ||
       w.school.toLowerCase().includes(q),
@@ -320,10 +332,16 @@ const fetchWinners = async () => {
 
 const fetchOnlineCount = async () => {
   try {
-    const res = await $fetch<{ count: number }>("/api/admin/online-count", {
-      headers: getAuthHeaders(),
-    });
+    const res = await $fetch<{ count: number; winnerConfirmCount?: number }>(
+      "/api/admin/online-count",
+      {
+        headers: getAuthHeaders(),
+      },
+    );
     onlineCount.value = res.count;
+    if (res.winnerConfirmCount !== undefined) {
+      winnerConfirmCount.value = res.winnerConfirmCount;
+    }
   } catch (e: any) {
     // 忽略错误，以免干扰主流程
   }
@@ -894,10 +912,6 @@ onUnmounted(() => {
                   <span class="stat-value">{{ participants.length }}</span>
                   <span class="stat-label">总数</span>
                 </div>
-                <div class="stat-item">
-                  <span class="stat-value">{{ onlineCount }}</span>
-                  <span class="stat-label">在线</span>
-                </div>
                 <div class="stat-item pending">
                   <span class="stat-value">{{ pendingCount }}</span>
                   <span class="stat-label">待开奖</span>
@@ -905,6 +919,14 @@ onUnmounted(() => {
                 <div class="stat-item win">
                   <span class="stat-value">{{ winnerCount }}</span>
                   <span class="stat-label">中奖</span>
+                </div>
+                <div class="stat-item win">
+                  <span class="stat-value">{{ winnerConfirmCount }}</span>
+                  <span class="stat-label">已加群</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-value">{{ onlineCount }}</span>
+                  <span class="stat-label">在线</span>
                 </div>
               </div>
               <van-button
@@ -1199,6 +1221,13 @@ onUnmounted(() => {
               placeholder="搜索姓名或学校"
               round
             />
+            <div class="filter-tabs">
+              <van-tabs v-model:active="winnerFilterJoined" shrink>
+                <van-tab title="全部" name="all" />
+                <van-tab title="已加群" name="joined" />
+                <van-tab title="未加群" name="unjoined" />
+              </van-tabs>
+            </div>
           </div>
           <div class="modal-body">
             <div
@@ -1213,6 +1242,7 @@ onUnmounted(() => {
                   <div class="item-school">{{ w.school }}</div>
                 </div>
                 <div class="item-right">
+                  <van-tag v-if="w.hasJoinedGroup" type="primary" plain style="margin-right: 4px;">已加群</van-tag>
                   <van-tag v-if="w.ticket?.status === 'VALID'" type="success">
                     门票有效
                   </van-tag>
@@ -1256,6 +1286,12 @@ onUnmounted(() => {
                 <div class="detail-row">
                   <span class="detail-label">UA</span>
                   <span class="detail-value">{{ w.userAgent }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">入群状态</span>
+                  <span class="detail-value" :style="{ color: w.hasJoinedGroup ? '#1976d2' : '#999' }">
+                    {{ w.hasJoinedGroup ? '已确认 (' + formatDateTime(w.joinedAt!) + ')' : '未确认' }}
+                  </span>
                 </div>
                 <div v-if="w.ticket" class="detail-row">
                   <span class="detail-label">门票码</span>
@@ -1668,6 +1704,11 @@ onUnmounted(() => {
 .modal-search {
   padding: 8px 4px;
   border-bottom: 1px solid #eee;
+
+  .filter-tabs {
+    padding: 0 12px;
+    margin-top: -4px;
+  }
 }
 
 .modal-body {

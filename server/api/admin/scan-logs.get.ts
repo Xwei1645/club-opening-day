@@ -12,11 +12,9 @@ export default defineEventHandler(async (event) => {
 
     const where: any = {};
 
-    // 如果是检票员，只能看自己的
     if (admin.role === "INSPECTOR") {
         where.inspectorId = admin.id;
     }
-    // 如果是管理员且指定了 inspectorId，则看指定人的
     else if (query.inspectorId) {
         where.inspectorId = String(query.inspectorId);
     }

@@ -60,6 +60,8 @@ model Participant {
   userAgent       String
   drawResult      DrawResult    @default(PENDING)
   forceResult     DrawResult?
+  hasJoinedGroup  Boolean       @default(false)
+  joinedAt        DateTime?
   createdAt       DateTime      @default(now())
   ticket          Ticket?
 

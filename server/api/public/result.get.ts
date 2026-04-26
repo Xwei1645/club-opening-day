@@ -53,6 +53,7 @@ export default defineEventHandler(async (event) => {
       name: participant.name,
       school: participant.school,
       recoverCode: participant.recoverCode,
+      hasJoinedGroup: participant.hasJoinedGroup,
       ticket: {
         ticketCode: participant.ticket.ticketCode,
         qrPayload: participant.ticket.qrPayload,

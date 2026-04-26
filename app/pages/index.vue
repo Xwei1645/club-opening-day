@@ -40,6 +40,7 @@ interface ResultData {
   name?: string;
   school?: string;
   recoverCode?: string;
+  hasJoinedGroup?: boolean;
   ticket?: TicketInfo;
 }
 
@@ -82,6 +83,8 @@ const rebindRecoverCode = ref("");
 const rebinding = ref(false);
 
 const showConfetti = ref(false);
+const showJoinGroupPopup = ref(false);
+const confirmJoining = ref(false);
 
 let eventSource: any = null;
 
@@ -311,6 +314,38 @@ const isTicketUsed = computed(() => {
   return resultData.value?.ticket?.status === "USED";
 });
 
+const fireConfetti = () => {
+  showConfetti.value = false;
+  nextTick(() => {
+    showConfetti.value = true;
+  });
+};
+
+const handleConfirmJoinGroup = async () => {
+  if (!resultData.value?.recoverCode) return;
+  confirmJoining.value = true;
+  try {
+    await $fetch("/api/public/join-group", {
+      method: "POST",
+      body: { recoverCode: resultData.value.recoverCode },
+    });
+    showJoinGroupPopup.value = false;
+    if (resultData.value) {
+      resultData.value.hasJoinedGroup = true;
+    }
+    fireConfetti();
+  } catch (e: any) {
+    showToast(e.data?.statusMessage || "确认失败");
+  } finally {
+    confirmJoining.value = false;
+  }
+};
+
+const handleNextTimeJoinGroup = () => {
+  showJoinGroupPopup.value = false;
+  fireConfetti();
+};
+
 const canAgree = computed(() => countdown.value <= 0 && scrolledToBottom.value);
 
 const agreeButtonText = computed(() => {
@@ -363,10 +398,14 @@ const fetchResult = async () => {
         setupSSE(res.ticket.ticketCode);
       }
 
-      const confettiKey = `winConfettiShown_${res.recoverCode}`;
-      if (!localStorage.getItem(confettiKey)) {
-        showConfetti.value = true;
-        localStorage.setItem(confettiKey, "true");
+      if (!res.hasJoinedGroup && config.value?.wechatQrCodeUrl) {
+        showJoinGroupPopup.value = true;
+      } else {
+        const confettiKey = `winConfettiShown_${res.recoverCode}`;
+        if (!localStorage.getItem(confettiKey)) {
+          showConfetti.value = true;
+          localStorage.setItem(confettiKey, "true");
+        }
       }
     }
   } catch (e) {
@@ -826,6 +865,35 @@ const handleSubmit = async () => {
             @click="handleNameVerify"
             >确认</van-button
           >
+        </div>
+      </div>
+    </van-popup>
+
+    <van-popup
+      v-model:show="showJoinGroupPopup"
+      round
+      :close-on-click-overlay="false"
+      :style="{ padding: '24px', width: '85%', maxWidth: '360px' }"
+    >
+      <div class="join-group-popup">
+        <h4 class="popup-title">恭喜中奖！🎉</h4>
+        <p class="popup-desc">请扫描下方二维码加入官方观众微信群，获取活动最新动态与入场指引。</p>
+        <div class="wechat-qr">
+          <img v-if="wechatQrDataUrl" :src="wechatQrDataUrl" alt="微信群二维码" />
+          <van-loading v-else size="20px" vertical>加载二维码...</van-loading>
+        </div>
+        <p class="popup-hint">请加群后点击下方按钮确认</p>
+        <div class="rebind-actions">
+          <van-button block round @click="handleNextTimeJoinGroup">下次再说</van-button>
+          <van-button
+            type="primary"
+            block
+            round
+            :loading="confirmJoining"
+            @click="handleConfirmJoinGroup"
+          >
+            我已加群
+          </van-button>
         </div>
       </div>
     </van-popup>
@@ -1566,6 +1634,56 @@ const handleSubmit = async () => {
   }
 
   .rebind-input {
+    margin-bottom: 16px;
+  }
+
+  .rebind-actions {
+    display: flex;
+    gap: 12px;
+
+    .van-button {
+      flex: 1;
+    }
+  }
+}
+
+.join-group-popup {
+  text-align: center;
+
+  .popup-title {
+    margin: 0 0 8px;
+    font-size: 18px;
+    color: #333;
+  }
+
+  .popup-desc {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: #666;
+  }
+
+  .wechat-qr {
+    margin: 16px auto;
+    width: 180px;
+    height: 180px;
+    padding: 10px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  }
+
+  .popup-hint {
+    font-size: 13px;
+    color: #7d7e80;
+    margin-top: 8px;
     margin-bottom: 16px;
   }
 
