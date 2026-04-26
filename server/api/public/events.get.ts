@@ -11,25 +11,36 @@ export default defineEventHandler((event) => {
 
   const eventStream = createEventStream(event);
 
-  const heartbeat = setInterval(() => {
-    eventStream.push(': heartbeat\n\n');
-  }, 20000);
+  const heartbeat = setInterval(async () => {
+    try {
+      await eventStream.push(": heartbeat\n\n");
+    } catch (e) {
+      clearInterval(heartbeat);
+      sseManager.off("verify", onVerify);
+      await eventStream.close();
+    }
+  }, 15000);
 
-  const onVerify = (code: string) => {
+  const onVerify = async (code: string) => {
     if (code === ticketCode) {
-      eventStream.push({
-        event: 'verify-success',
-        data: JSON.stringify({ message: '欢迎来到浙江省温州中学' })
-      });
-      eventStream.close();
+      try {
+        await eventStream.push({
+          event: "verify-success",
+          data: JSON.stringify({ message: "欢迎来到浙江省温州中学" }),
+        });
+      } finally {
+        clearInterval(heartbeat);
+        sseManager.off("verify", onVerify);
+        await eventStream.close();
+      }
     }
   };
 
-  sseManager.on('verify', onVerify);
+  sseManager.on("verify", onVerify);
 
   eventStream.onClosed(() => {
     clearInterval(heartbeat);
-    sseManager.off('verify', onVerify);
+    sseManager.off("verify", onVerify);
   });
 
   return eventStream.send();
