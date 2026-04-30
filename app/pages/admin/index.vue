@@ -48,6 +48,7 @@ interface Winner {
   recoverCode: string | null;
   hasJoinedGroup: boolean;
   joinedAt: string | null;
+  forceResult: string | null;
   ticket: {
     ticketCode: string;
     status: string;
@@ -1278,6 +1279,7 @@ onUnmounted(() => {
                   <div class="item-school">{{ w.school }}</div>
                 </div>
                 <div class="item-right">
+                  <van-tag v-if="w.forceResult === 'WIN'" type="danger" style="margin-right: 4px;">必中</van-tag>
                   <van-tag v-if="w.hasJoinedGroup" type="primary" plain style="margin-right: 4px;">已加群</van-tag>
                   <van-tag v-if="w.ticket?.status === 'VALID'" type="success">
                     门票有效
