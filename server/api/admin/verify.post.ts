@@ -105,6 +105,28 @@ export default defineEventHandler(async (event) => {
     return { ok: false, status: "used", participant: participantInfo };
   }
 
+  // Generate ticket number
+  const finalTicket = await prisma.$transaction(async (tx) => {
+    // Check if it already has a number (shouldn't happen with updateMany check above, but for safety)
+    const t = await tx.ticket.findUnique({ where: { id: ticket.id } });
+    if (t?.ticketNo) return t;
+
+    const config = await tx.drawConfig.findUnique({ where: { id: 1 } });
+    const startNo = config?.ticketNoStart ?? 1;
+
+    const maxTicket = await tx.ticket.findFirst({
+      where: { ticketNo: { not: null } },
+      orderBy: { ticketNo: "desc" },
+    });
+
+    const nextNo = maxTicket?.ticketNo ? maxTicket.ticketNo + 1 : startNo;
+
+    return tx.ticket.update({
+      where: { id: ticket.id },
+      data: { ticketNo: nextNo },
+    });
+  });
+
   await prisma.scanLog.create({
     data: {
       ticketId: ticket.id,
@@ -116,7 +138,12 @@ export default defineEventHandler(async (event) => {
     },
   });
 
-  sseManager.notifyVerify(ticketCode);
+  sseManager.notifyVerify(ticketCode, finalTicket.ticketNo || undefined);
 
-  return { ok: true, status: "success", participant: participantInfo };
+  return {
+    ok: true,
+    status: "success",
+    participant: participantInfo,
+    ticketNo: finalTicket.ticketNo,
+  };
 });

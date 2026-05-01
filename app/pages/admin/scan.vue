@@ -9,6 +9,7 @@ import jsQR from "jsqr";
 interface ScanResult {
   ok: boolean;
   status: string;
+  ticketNo?: number;
   participant?: {
     name: string;
     school: string;
@@ -21,6 +22,7 @@ interface ScanRecord {
   time: string;
   name?: string;
   school?: string;
+  ticketNo?: number;
 }
 
 const scanning = ref(false);
@@ -28,6 +30,7 @@ const successCount = ref(0);
 const showResult = ref(false);
 const resultStatus = ref<"success" | "used" | "expired" | "invalid">("invalid");
 const resultMessage = ref("");
+const resultTicketNo = ref<number | null>(null);
 const resultParticipant = ref<{ name: string; school: string } | null>(null);
 const scanRecords = ref<any[]>([]);
 const showRecords = ref(false);
@@ -79,6 +82,7 @@ const showResultPopup = (
   status: "success" | "used" | "expired" | "invalid",
   message: string,
   participant?: { name: string; school: string },
+  ticketNo?: number,
 ) => {
   if (resultTimeout) {
     clearTimeout(resultTimeout);
@@ -87,11 +91,12 @@ const showResultPopup = (
   resultStatus.value = status;
   resultMessage.value = message;
   resultParticipant.value = participant || null;
+  resultTicketNo.value = ticketNo || null;
   showResult.value = true;
 
   resultTimeout = setTimeout(() => {
     showResult.value = false;
-  }, 2000);
+  }, 4000);
 };
 
 const verifyTicket = async (code: string) => {
@@ -111,7 +116,7 @@ const verifyTicket = async (code: string) => {
 
     if (res.ok) {
       successCount.value++;
-      showResultPopup("success", "可通行", res.participant);
+      showResultPopup("success", "验证成功", res.participant, res.ticketNo);
     } else {
       const status = res.status as "used" | "expired";
       showResultPopup(
@@ -322,6 +327,9 @@ onUnmounted(() => {
           <van-icon v-else name="close" />
         </div>
         <div class="result-text">{{ resultMessage }}</div>
+        <div v-if="resultTicketNo && resultStatus === 'success'" class="ticket-no">
+          NO.{{ String(resultTicketNo).padStart(3, '0') }}
+        </div>
         <div v-if="resultParticipant" class="result-info">
           <span class="name">{{ resultParticipant.name }}</span>
           <span class="school">{{ resultParticipant.school }}</span>
@@ -653,6 +661,18 @@ onUnmounted(() => {
     font-size: 22px;
     font-weight: bold;
     margin-bottom: 8px;
+  }
+
+  .ticket-no {
+    font-size: 32px;
+    font-weight: 800;
+    font-family: monospace;
+    color: #333;
+    margin: 12px 0;
+    padding: 8px 16px;
+    background: #f0f0f0;
+    border-radius: 8px;
+    letter-spacing: 2px;
   }
 
   .result-info {

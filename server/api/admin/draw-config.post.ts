@@ -10,6 +10,7 @@ const schema = z.object({
   publishStatus: z.enum(["HIDDEN", "PUBLIC"]).optional(),
   ipCheckEnabled: z.boolean().optional(),
   wechatQrCodeUrl: z.string().max(500).nullable().optional(),
+  ticketNoStart: z.number().int().min(0).max(999).optional(),
 });
 
 export default defineEventHandler(async (event) => {
@@ -34,6 +35,7 @@ export default defineEventHandler(async (event) => {
       publishStatus: body.publishStatus,
       ipCheckEnabled: body.ipCheckEnabled,
       wechatQrCodeUrl: body.wechatQrCodeUrl,
+      ticketNoStart: body.ticketNoStart,
     },
   });
 });

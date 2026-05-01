@@ -15,8 +15,8 @@ class SSEManager extends EventEmitter {
     return SSEManager.instance;
   }
 
-  public notifyVerify(ticketCode: string) {
-    this.emit('verify', ticketCode);
+  public notifyVerify(ticketCode: string, ticketNo?: number) {
+    this.emit('verify', ticketCode, ticketNo);
   }
 }
 

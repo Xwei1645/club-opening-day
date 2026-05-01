@@ -46,6 +46,7 @@ model DrawConfig {
   winnerCount       Int
   ipCheckEnabled    Boolean       @default(true)
   wechatQrCodeUrl   String?
+  ticketNoStart     Int           @default(1)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 }
@@ -80,11 +81,13 @@ model Ticket {
   issuedAt      DateTime    @default(now())
   expiresAt     DateTime
   usedAt        DateTime?
+  ticketNo      Int?
   createdAt     DateTime    @default(now())
   scanLogs      ScanLog[]
 
   @@index([status])
   @@index([expiresAt])
+  @@index([ticketNo])
 }
 
 model ScanLog {

@@ -21,12 +21,15 @@ export default defineEventHandler((event) => {
     }
   }, 15000);
 
-  const onVerify = async (code: string) => {
+  const onVerify = async (code: string, ticketNo?: number) => {
     if (code === ticketCode) {
       try {
         await eventStream.push({
           event: "verify-success",
-          data: JSON.stringify({ message: "欢迎来到浙江省温州中学" }),
+          data: JSON.stringify({ 
+            message: "欢迎来到浙江省温州中学",
+            ticketNo 
+          }),
         });
       } finally {
         clearInterval(heartbeat);

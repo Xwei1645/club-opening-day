@@ -16,6 +16,7 @@ interface DrawConfig {
   winnerCount: number;
   ipCheckEnabled: boolean;
   wechatQrCodeUrl: string | null;
+  ticketNoStart: number;
 }
 
 interface Participant {
@@ -55,6 +56,7 @@ interface Winner {
     issuedAt: string;
     expiresAt: string;
     usedAt: string | null;
+    ticketNo: number | null;
   } | null;
 }
 
@@ -124,6 +126,7 @@ const configForm = ref({
   ticketExpireAtTime: "",
   winnerCount: "10",
   wechatQrCodeUrl: "",
+  ticketNoStart: "1",
 });
 
 const now = new Date();
@@ -271,6 +274,7 @@ const fetchConfig = async () => {
       ticketExpireAtTime: expireAt.toTimeString().slice(0, 5),
       winnerCount: String(res.winnerCount),
       wechatQrCodeUrl: res.wechatQrCodeUrl || "",
+      ticketNoStart: String(res.ticketNoStart ?? 1),
     };
 
     currentDate.value = [
@@ -414,6 +418,7 @@ const updateConfig = async () => {
         ticketExpireAt: selectedExpireAt.toISOString(),
         winnerCount: winnerCountNum,
         wechatQrCodeUrl: configForm.value.wechatQrCodeUrl || null,
+        ticketNoStart: parseInt(configForm.value.ticketNoStart, 10),
       },
     });
     showSuccessToast("保存成功");
@@ -918,6 +923,16 @@ onUnmounted(() => {
                   placeholder="输入微信群二维码解码内容"
                 />
               </div>
+              <div class="form-item">
+                <label>门票起始编号</label>
+                <input
+                  v-model="configForm.ticketNoStart"
+                  type="number"
+                  class="number-input"
+                  min="0"
+                  max="999"
+                />
+              </div>
               <van-button
                 type="primary"
                 size="small"
@@ -1338,6 +1353,12 @@ onUnmounted(() => {
                     @click="copyTicketCode(w.ticket.ticketCode)"
                   >
                     {{ formatTicketCode(w.ticket.ticketCode) }}
+                  </span>
+                </div>
+                <div v-if="w.ticket?.ticketNo" class="detail-row">
+                  <span class="detail-label">门票编号</span>
+                  <span class="detail-value" style="font-family: monospace; font-weight: bold; color: #1976d2;">
+                    NO.{{ String(w.ticket.ticketNo).padStart(3, '0') }}
                   </span>
                 </div>
                 <div v-if="w.ticket?.usedAt" class="detail-row">

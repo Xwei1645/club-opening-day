@@ -29,6 +29,7 @@ interface TicketInfo {
   issuedAt: string;
   expiresAt: string;
   usedAt: string | null;
+  ticketNo?: number;
 }
 
 interface ResultData {
@@ -102,6 +103,9 @@ const setupSSE = (ticketCode: string) => {
     if (resultData.value?.ticket) {
       resultData.value.ticket.status = "USED";
       resultData.value.ticket.usedAt = new Date().toISOString();
+      if (data.ticketNo) {
+        resultData.value.ticket.ticketNo = data.ticketNo;
+      }
     }
 
     showSuccessToast({
@@ -669,7 +673,10 @@ const handleSubmit = async () => {
                   <img :src="qrDataUrl" alt="门票二维码" />
                   <div v-if="isTicketUsed" class="qr-code-overlay">
                     <van-icon name="certificate" class="overlay-icon" />
-                    <span class="overlay-text">已使用</span>
+                    <span v-if="resultData.ticket.ticketNo" class="overlay-no">
+                      NO.{{ String(resultData.ticket.ticketNo).padStart(3, '0') }}
+                    </span>
+                    <span v-else class="overlay-text">已使用</span>
                   </div>
                   <div v-else-if="isTicketExpired" class="qr-code-overlay">
                     <van-icon name="close" class="overlay-icon" />
@@ -1457,6 +1464,14 @@ const handleSubmit = async () => {
             font-weight: 500;
             color: #666;
           }
+
+          .overlay-no {
+            font-size: 28px;
+            font-weight: 800;
+            color: #2e7d32;
+            font-family: monospace;
+            letter-spacing: 1px;
+          }
         }
       }
 
@@ -1488,6 +1503,27 @@ const handleSubmit = async () => {
         .time {
           color: #666;
           font-size: 12px;
+        }
+      }
+
+      .ticket-no-container {
+        margin: 12px 0;
+        background: #f8f9fa;
+        padding: 8px;
+        border-radius: 8px;
+
+        .label {
+          color: #999;
+          font-size: 14px;
+          margin-right: 8px;
+        }
+
+        .no-value {
+          color: #333;
+          font-size: 24px;
+          font-weight: 800;
+          font-family: 'Courier New', Courier, monospace;
+          letter-spacing: 1px;
         }
       }
 

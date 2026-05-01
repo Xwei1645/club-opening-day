@@ -61,6 +61,7 @@ export default defineEventHandler(async (event) => {
         issuedAt: participant.ticket.issuedAt,
         expiresAt: participant.ticket.expiresAt,
         usedAt: participant.ticket.usedAt,
+        ticketNo: participant.ticket.ticketNo,
       },
     };
   }
